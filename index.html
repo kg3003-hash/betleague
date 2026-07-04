@@ -1,0 +1,1469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🥊 Bragging Rights Betting League</title>
+<!-- Tailwind CSS via CDN (Play CDN) -->
+<script src="https://cdn.tailwindcss.com"></script>
+<!-- Display font for that fight-poster feel -->
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+<!-- Firebase (compat SDK — simplest for a single static file, no build step).
+     This gives every player a real-time SHARED backend: whoever bets on their
+     phone updates everyone else's screen automatically. See the ⚙️ Setup screen
+     (shown automatically below until configured) for the 5-minute free setup. -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          brl: {
+            black: '#070a08',
+            card:  '#111511',
+            card2: '#182018',
+            line:  '#263226',
+            green: '#12a150',
+            green2:'#22e06b',
+            lime:  '#a3e635',
+            lime2: '#d3f867',
+          }
+        },
+        fontFamily: {
+          display: ['Anton', 'sans-serif'],
+          body: ['Inter', 'sans-serif'],
+        }
+      }
+    }
+  }
+</script>
+<style>
+  body { background:#070a08; font-family:'Inter',sans-serif; }
+  .octa { clip-path: polygon(14px 0, calc(100% - 14px) 0, 100% 14px, 100% calc(100% - 14px), calc(100% - 14px) 100%, 14px 100%, 0 calc(100% - 14px), 0 14px); }
+  .octa-sm { clip-path: polygon(8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px), 0 8px); }
+  .font-display { letter-spacing: .02em; }
+  ::-webkit-scrollbar { width:10px; height:10px; }
+  ::-webkit-scrollbar-track { background:#070a08; }
+  ::-webkit-scrollbar-thumb { background:#263226; border-radius:5px; }
+  ::-webkit-scrollbar-thumb:hover { background:#12a150; }
+  .tab-btn.active { color:#d3f867; border-color:#a3e635; background:#182018; }
+  .side-btn.selected { background:#12a150; border-color:#22e06b; color:#fff; box-shadow:0 0 18px rgba(34,224,107,.4); }
+  .stake-btn.selected { background:#a3e635; border-color:#d3f867; color:#070a08; font-weight:900; }
+  .win-flash { animation: winPulse 1.2s ease-in-out; }
+  @keyframes winPulse { 0%{transform:scale(1)} 30%{transform:scale(1.06)} 100%{transform:scale(1)} }
+  @media (prefers-reduced-motion: reduce) { *{animation:none !important; transition:none !important;} }
+  input, select { color-scheme: dark; }
+  /* ---------------- Title badges (Wins & Titles ladder) ---------------- */
+  .title-badge { display:inline-flex; align-items:center; gap:4px; padding:2px 9px; border-radius:4px; font-size:10px; font-weight:900; text-transform:uppercase; letter-spacing:.06em; white-space:nowrap; }
+  .title-prospect  { background:#182018; color:#9ca3af; border:1px solid #263226; }
+  .title-contender { background:#0f2a17; color:#4ade80; border:1px solid #14532d; }
+  .title-champion  { background:#1a2e0a; color:#a3e635; border:1px solid #3f6212; }
+  .title-emperor   { background:linear-gradient(90deg,#12a150,#a3e635); color:#070a08; box-shadow:0 0 14px rgba(163,230,53,.55); }
+  .title-goat      { background:linear-gradient(90deg,#22e06b,#d3f867,#22e06b); background-size:200% auto; color:#070a08; animation:shimmer 2.5s linear infinite; box-shadow:0 0 22px rgba(211,248,103,.85); }
+  @keyframes shimmer { 0%{background-position:0% center;} 100%{background-position:200% center;} }
+  /* ---------------- Firebase setup overlay ---------------- */
+  #setup-screen code { background:#182018; border:1px solid #263226; padding:1px 6px; border-radius:3px; color:#d3f867; }
+</style>
+</head>
+<body class="text-gray-200 min-h-screen">
+
+<!-- ======================= FIREBASE SETUP OVERLAY ======================= -->
+<!-- Shown automatically only if the FIREBASE_CONFIG placeholders below haven't been replaced yet. -->
+<div id="setup-screen" class="hidden fixed inset-0 z-[100] bg-brl-black overflow-y-auto">
+  <div class="max-w-2xl mx-auto px-5 py-10">
+    <h1 class="font-display text-3xl sm:text-4xl uppercase text-white mb-1">🔌 One-time setup</h1>
+    <p class="text-brl-lime2 font-bold mb-6">Connect a free shared backend so everyone's bets sync in real time.</p>
+    <div class="octa bg-brl-card border border-brl-line p-5 mb-4">
+      <p class="text-sm text-gray-300 mb-4">This app needs a tiny free database so your phone, and your friends' phones, all see the same live league. Takes about 5 minutes, no credit card.</p>
+      <ol class="space-y-3 text-sm text-gray-300 list-decimal list-inside">
+        <li>Go to <b class="text-white">console.firebase.google.com</b> → <b class="text-white">Add project</b> → give it any name → skip Google Analytics → Create.</li>
+        <li>Left sidebar → <b class="text-white">Build → Realtime Database</b> → <b class="text-white">Create Database</b> → pick any location → start in <b class="text-white">test mode</b>.</li>
+        <li>Click the <b class="text-white">Rules</b> tab and replace the contents with:
+          <pre class="bg-brl-black border border-brl-line rounded p-2 mt-1 text-xs overflow-x-auto">{
+  "rules": { ".read": true, ".write": true }
+}</pre>
+          then <b class="text-white">Publish</b>. (This keeps it simple for a private friend group — don't share the link publicly.)
+        </li>
+        <li>Click the ⚙️ gear next to <b class="text-white">Project Overview</b> → <b class="text-white">Project settings</b> → scroll to <b class="text-white">Your apps</b> → click <b class="text-white">&lt;/&gt;</b> (web) → register the app → copy the <code>firebaseConfig</code> object it shows you.</li>
+        <li>Open this HTML file in a text editor, find <code>FIREBASE_CONFIG</code> near the top of the <code>&lt;script&gt;</code> section, and paste your 6 values in. Save the file and re-upload it to wherever you're hosting it.</li>
+      </ol>
+    </div>
+    <button onclick="location.reload()" class="octa-sm bg-brl-green hover:bg-brl-green2 text-white font-bold px-5 py-3 uppercase text-sm w-full">🔄 I've added my config — reload</button>
+    <p class="text-xs text-gray-600 mt-4 text-center">Just exploring? You can also open this file locally without any setup — but bets won't sync between different phones until this step is done.</p>
+  </div>
+</div>
+
+<!-- ======================= HEADER ======================= -->
+<header class="border-b-4 border-brl-green bg-gradient-to-b from-[#0d140e] to-brl-black">
+  <div class="max-w-6xl mx-auto px-4 py-5 flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <h1 class="font-display text-3xl sm:text-5xl uppercase leading-none">
+        <span class="text-white">🥊 BRAGGING</span>
+        <span class="text-brl-green2">RIGHTS</span>
+        <span class="text-brl-lime2">BETTING LEAGUE</span>
+      </h1>
+      <p class="text-xs text-gray-500 mt-1 tracking-widest uppercase">1000 points. Every fight night. No mercy.</p>
+    </div>
+    <div id="header-champ" class="text-right"></div>
+  </div>
+  <div id="sync-status" class="max-w-6xl mx-auto px-4 pb-2 text-[11px] text-gray-500"></div>
+</header>
+
+<!-- ======================= TAB NAV ======================= -->
+<nav class="sticky top-0 z-40 bg-brl-black/95 backdrop-blur border-b border-brl-line">
+  <div class="max-w-6xl mx-auto px-2 flex overflow-x-auto whitespace-nowrap">
+    <button onclick="showTab('standings')" data-tab="standings" class="tab-btn active px-4 py-3 text-sm font-bold uppercase tracking-wide text-gray-400 border-b-2 border-transparent hover:text-white">🏆 Standings</button>
+    <button onclick="showTab('betting')" data-tab="betting" class="tab-btn px-4 py-3 text-sm font-bold uppercase tracking-wide text-gray-400 border-b-2 border-transparent hover:text-white">💰 Place Bets</button>
+    <button onclick="showTab('events')" data-tab="events" class="tab-btn px-4 py-3 text-sm font-bold uppercase tracking-wide text-gray-400 border-b-2 border-transparent hover:text-white">🥊 Events</button>
+    <button onclick="showTab('results')" data-tab="results" class="tab-btn px-4 py-3 text-sm font-bold uppercase tracking-wide text-gray-400 border-b-2 border-transparent hover:text-white">🚨 Results</button>
+    <button onclick="showTab('history')" data-tab="history" class="tab-btn px-4 py-3 text-sm font-bold uppercase tracking-wide text-gray-400 border-b-2 border-transparent hover:text-white">📜 History</button>
+    <button onclick="showTab('howto')" data-tab="howto" class="tab-btn px-4 py-3 text-sm font-bold uppercase tracking-wide text-gray-400 border-b-2 border-transparent hover:text-white">❓ How to Play</button>
+    <button onclick="showTab('league')" data-tab="league" class="tab-btn px-4 py-3 text-sm font-bold uppercase tracking-wide text-gray-400 border-b-2 border-transparent hover:text-white">⚙️ League</button>
+  </div>
+</nav>
+
+<main class="max-w-6xl mx-auto px-4 py-6">
+
+  <!-- ======================= STANDINGS TAB ======================= -->
+  <section id="tab-standings" class="tab-panel">
+    <h2 class="font-display text-3xl uppercase text-white mb-1">🏆 Season Standings</h2>
+    <p class="text-sm text-gray-500 mb-5">Points + fight-night wins. Best score of the night earns 1 win — stack wins to climb the title ladder.</p>
+    <div id="standings-content"></div>
+  </section>
+
+  <!-- ======================= BETTING TAB ======================= -->
+  <section id="tab-betting" class="tab-panel hidden">
+    <h2 class="font-display text-3xl uppercase text-white mb-1">💰 Place Your Bets</h2>
+    <p class="text-sm text-gray-500 mb-5">Pick your name, pick your fighters, pick your stakes. 20 / 60 / 100 point bets only — up to 1000 total.</p>
+    <div id="betting-content"></div>
+  </section>
+
+  <!-- ======================= EVENTS TAB ======================= -->
+  <section id="tab-events" class="tab-panel hidden">
+    <div class="flex flex-wrap items-end justify-between gap-3 mb-5">
+      <div>
+        <h2 class="font-display text-3xl uppercase text-white mb-1">🥊 Fight Events</h2>
+        <p class="text-sm text-gray-500">Create events, build fight cards, set the odds.</p>
+      </div>
+      <button onclick="createEvent()" class="octa-sm bg-brl-green hover:bg-brl-green2 text-white font-bold px-5 py-2.5 uppercase text-sm tracking-wide">+ New Event</button>
+    </div>
+    <div id="events-content"></div>
+  </section>
+
+  <!-- ======================= RESULTS TAB ======================= -->
+  <section id="tab-results" class="tab-panel hidden">
+    <h2 class="font-display text-3xl uppercase text-white mb-1">🚨 Enter Results</h2>
+    <p class="text-sm text-gray-500 mb-5">Pick the winner of each fight, then hit Calculate to pay everyone out.</p>
+    <div id="results-content"></div>
+  </section>
+
+  <!-- ======================= HISTORY TAB ======================= -->
+  <section id="tab-history" class="tab-panel hidden">
+    <h2 class="font-display text-3xl uppercase text-white mb-1">📜 Event History</h2>
+    <p class="text-sm text-gray-500 mb-5">Every completed event, every bet, every glorious underdog cash-out.</p>
+    <div id="history-content"></div>
+  </section>
+
+  <!-- ======================= HOW TO PLAY TAB ======================= -->
+  <section id="tab-howto" class="tab-panel hidden">
+    <h2 class="font-display text-3xl uppercase text-white mb-4">❓ How to Play</h2>
+    <div class="grid gap-4 md:grid-cols-2">
+      <div class="octa bg-brl-card border border-brl-line p-5">
+        <h3 class="font-display text-xl text-brl-lime2 uppercase mb-2">📏 The Rules</h3>
+        <ul class="space-y-2 text-sm text-gray-300 list-disc list-inside">
+          <li>Every fight night, each player gets a fresh <b class="text-white">1000 points</b> to bet.</li>
+          <li>Bets come in three sizes only: <b class="text-brl-lime2">20</b>, <b class="text-brl-lime2">60</b>, or <b class="text-brl-lime2">100</b> points.</li>
+          <li>Bet on as many fights as you like — total staked can't exceed <b class="text-white">1000</b>.</li>
+          <li>One fighter per fight. You can't hedge by betting both corners.</li>
+          <li>Points you don't bet are safe and stay in your bankroll.</li>
+          <li>⏰ <b class="text-white">Betting locks 30 minutes before each fight starts.</b> Once a fight locks, your saved bet on it stands — no changes.</li>
+          <li>Your <b class="text-white">final bankroll</b> for the night gets added to your season total.</li>
+        </ul>
+        <p class="text-xs text-gray-500 mt-3">📡 Upcoming UFC events, fight cards, start times and odds sync automatically from ESPN. Hit "Sync now" in 🥊 Events to refresh manually.</p>
+      </div>
+      <div class="octa bg-brl-card border border-brl-line p-5">
+        <h3 class="font-display text-xl text-brl-lime2 uppercase mb-2">📐 How Payouts Work</h3>
+        <p class="text-sm text-gray-300 mb-2">We use real <b class="text-white">American odds</b>, converted to a multiplier:</p>
+        <ul class="space-y-2 text-sm text-gray-300 list-disc list-inside mb-3">
+          <li><b class="text-white">Underdog (+250):</b> multiplier = 1 + 250/100 = <b class="text-brl-lime2">3.50×</b></li>
+          <li><b class="text-white">Favorite (−180):</b> multiplier = 1 + 100/180 = <b class="text-brl-lime2">1.56×</b></li>
+        </ul>
+        <p class="text-sm text-gray-300">Win: you get back <b class="text-white">stake × multiplier</b>. Lose: the stake is gone.</p>
+      </div>
+      <div class="octa bg-brl-card border border-brl-line p-5 md:col-span-2">
+        <h3 class="font-display text-xl text-brl-lime2 uppercase mb-3">🏅 Wins &amp; Titles</h3>
+        <p class="text-sm text-gray-300 mb-3">Whoever posts the <b class="text-white">highest bankroll</b> at the end of a fight night earns <b class="text-white">1 win</b> on the leaderboard (ties all get a win). Stack up wins to climb the title ladder — it gets progressively more epic the higher you go:</p>
+        <div class="grid grid-cols-1 sm:grid-cols-5 gap-2 text-center">
+          <div class="title-badge title-prospect justify-center py-2">🥊 Prospect<br>10 wins</div>
+          <div class="title-badge title-contender justify-center py-2">🔥 Contender<br>20 wins</div>
+          <div class="title-badge title-champion justify-center py-2">🏆 Champion<br>30 wins</div>
+          <div class="title-badge title-emperor justify-center py-2">👑 Emperor of<br>Predictions · 40 wins</div>
+          <div class="title-badge title-goat justify-center py-2">🐐 GREATEST OF<br>ALL TIME · 50 wins</div>
+        </div>
+      </div>
+      <div class="octa bg-brl-card border border-brl-line p-5">
+        <h3 class="font-display text-xl text-brl-lime2 uppercase mb-2">🧮 Worked Example</h3>
+        <p class="text-sm text-gray-300 mb-2">You start with 1000 and place two bets:</p>
+        <ul class="space-y-2 text-sm text-gray-300 list-disc list-inside">
+          <li>100 on a <b class="text-white">+400 underdog</b> → he wins! You get back 100 × 5.00 = <b class="text-green-400">500</b> 🔥</li>
+          <li>60 on a <b class="text-white">−200 favorite</b> → he loses. Your 60 is <b class="text-red-400">gone</b>.</li>
+        </ul>
+        <p class="text-sm text-gray-300 mt-3">Final bankroll = 1000 − 160 staked + 500 returned = <b class="text-brl-lime2 text-lg">1340</b> added to your season total.</p>
+      </div>
+      <div class="octa bg-brl-card border border-brl-line p-5">
+        <h3 class="font-display text-xl text-brl-lime2 uppercase mb-2">🗓️ Fight Week Rhythm</h3>
+        <ul class="space-y-2 text-sm text-gray-300 list-disc list-inside">
+          <li>Everyone opens this page from their own phone — no app to install.</li>
+          <li>Sync the card, lock in picks Thursday or Friday before fight night.</li>
+          <li>Betting on each fight auto-locks 30 min before it starts.</li>
+          <li>Results and standings update live for everyone the moment they're calculated.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================= LEAGUE TAB ======================= -->
+  <section id="tab-league" class="tab-panel hidden">
+    <h2 class="font-display text-3xl uppercase text-white mb-5">⚙️ League Management</h2>
+    <div class="grid gap-5 md:grid-cols-2">
+      <div class="octa bg-brl-card border border-brl-line p-5">
+        <h3 class="font-display text-xl text-brl-lime2 uppercase mb-3">👥 Players</h3>
+        <div class="flex gap-2 mb-4">
+          <input id="new-player-name" type="text" placeholder="Player name" maxlength="24"
+                 class="flex-1 bg-brl-black border border-brl-line rounded px-3 py-2 text-sm focus:border-brl-lime focus:outline-none"
+                 onkeydown="if(event.key==='Enter')addPlayer()">
+          <button onclick="addPlayer()" class="octa-sm bg-brl-green hover:bg-brl-green2 text-white font-bold px-4 py-2 text-sm uppercase">Add</button>
+        </div>
+        <div id="players-list" class="space-y-2"></div>
+      </div>
+      <div class="octa bg-brl-card border border-brl-line p-5">
+        <h3 class="font-display text-xl text-brl-lime2 uppercase mb-3">💾 League Data</h3>
+        <p class="text-xs text-gray-500 mb-4">This league lives in your shared cloud database — every player's phone sees the same live data. Export/import moves it to a different database if you ever need to.</p>
+        <div class="flex flex-col gap-3">
+          <button onclick="exportLeague()" class="octa-sm bg-brl-card2 border border-brl-lime text-brl-lime2 hover:bg-brl-lime hover:text-black font-bold px-4 py-2.5 text-sm uppercase">⬇️ Export league (JSON)</button>
+          <label class="octa-sm bg-brl-card2 border border-brl-lime text-brl-lime2 hover:bg-brl-lime hover:text-black font-bold px-4 py-2.5 text-sm uppercase text-center cursor-pointer">
+            ⬆️ Import league (JSON)
+            <input type="file" accept=".json,application/json" class="hidden" onchange="importLeague(event)">
+          </label>
+          <hr class="border-brl-line my-1">
+          <button onclick="loadDemoEvent(true)" class="octa-sm bg-brl-card2 border border-brl-line text-gray-300 hover:border-brl-lime font-bold px-4 py-2.5 text-sm uppercase">🎬 Load demo fight card</button>
+          <button onclick="resetEverything()" class="octa-sm bg-brl-card2 border border-red-800 text-red-400 hover:bg-brl-green hover:text-white font-bold px-4 py-2.5 text-sm uppercase">💣 Reset everything</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="border-t border-brl-line mt-10">
+  <div class="max-w-6xl mx-auto px-4 py-6 text-center text-xs text-gray-600">
+    🥊 Bragging Rights Betting League — points only, no real money. Fantasy game for friends.
+  </div>
+</footer>
+
+<!-- Toast notification -->
+<div id="toast" class="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 hidden octa-sm bg-brl-card2 border border-brl-lime text-white px-5 py-3 text-sm font-bold shadow-2xl"></div>
+
+<script>
+/* =====================================================================
+   BRAGGING RIGHTS BETTING LEAGUE — all game logic
+
+   SHARED BACKEND: Firebase Realtime Database. One JSON tree, synced live
+   to every connected phone:
+     /players            : [{id, name}]
+     /events/{eventId}   : { id, espnId?, name, status, date,
+                              fights: [{id, f1, f2, odds1, odds2, winner,
+                                        startTime, espnCompId, a1, a2, oddsPending}],
+                              bets:    { playerId: [{fightId, side, stake}] },
+                              results: { playerId: { staked, returned, bankroll, breakdown } } }
+     /meta/lastSync      : number
+     /meta/seeded        : true (guards one-time player seeding)
+
+   Local `state` mirrors this tree and is kept in sync via onValue listeners.
+   Writes are optimistic (mutate `state` + render immediately) then persisted
+   to Firebase; the listener reconciles shortly after (usually invisibly).
+   ===================================================================== */
+
+// ---- PASTE YOUR FIREBASE CONFIG HERE (see the setup screen for how) ----
+const firebaseConfig = {
+  apiKey: "AIzaSyBqA8Bb98IeCww8DxRpGshh9k9toTdcH0w",
+  authDomain: "friends-betting-league.firebaseapp.com",
+  projectId: "friends-betting-league",
+  storageBucket: "friends-betting-league.firebasestorage.app",
+  messagingSenderId: "1065653057572",
+  appId: "1:1065653057572:web:063bb07b15f517593dc0b1"
+};
+// -------------------------------------------------------------------------
+
+const STAKES = [20, 60, 100];
+const START_BANKROLL = 1000;
+const DEFAULT_PLAYERS = ['Kelly', 'Rachel', 'Brandon'];
+
+let state = { players: [], events: [], lastSync: 0 };
+let db = null;          // firebase.database() once connected
+let dbReady = false;    // true once the first snapshot of players+events has loaded
+
+// Betting tab UI state (not persisted): who is betting + their draft picks
+let ui = { bettorId: '', bettingEventId: '', draft: {}, resultsEventId: '' };
+
+/* ---------------- helpers ---------------- */
+const uid = () => Math.random().toString(36).slice(2, 10);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const playerName = id => (state.players.find(p => p.id === id) || {name:'(removed player)'}).name;
+
+// American odds -> decimal multiplier
+function americanToDecimal(odds) {
+  odds = Number(odds);
+  if (odds > 0) return 1 + odds / 100;
+  if (odds < 0) return 1 + 100 / Math.abs(odds);
+  return 1;
+}
+const fmtOdds = o => (Number(o) > 0 ? '+' + Number(o) : String(Number(o)));
+const fmtPts = n => Math.round(n).toLocaleString();
+const profitFor = (stake, odds) => stake * americanToDecimal(odds) - stake;
+
+function toast(msg, good = true) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.remove('border-brl-lime', 'border-red-600', 'hidden');
+  t.classList.add(good ? 'border-brl-lime' : 'border-red-600');
+  clearTimeout(toast._tm);
+  toast._tm = setTimeout(() => t.classList.add('hidden'), 2600);
+}
+
+/* =====================================================================
+   FIREBASE SYNC LAYER
+   ===================================================================== */
+function firebaseConfigured() {
+  return FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.apiKey !== 'YOUR_API_KEY' &&
+         FIREBASE_CONFIG.databaseURL && !FIREBASE_CONFIG.databaseURL.includes('YOUR_PROJECT');
+}
+
+// Convert the RTDB events object-map ({id: event, ...}) into the array our
+// render/compute code works with, newest event first.
+//
+// IMPORTANT: Firebase Realtime Database deletes empty objects/arrays on write
+// — writing `fights: []` or `bets: {}` stores NOTHING at that path, because
+// there's nothing to store. That means a freshly created event (before any
+// fight/bet exists) comes back from Firebase with `fights`/`bets`/`results`
+// missing entirely (`undefined`), not empty. Every place in this app assumes
+// those fields are always present, so we normalize them back to [] / {} right
+// here, once, on every read — the single choke point all Firebase data flows
+// through before touching app state.
+function normalizeEvent(ev) {
+  ev.fights = ev.fights || [];
+  ev.bets = ev.bets || {};
+  ev.results = ev.results || {};
+  return ev;
+}
+function eventsMapToArray(map) {
+  if (!map) return [];
+  return Object.values(map).map(normalizeEvent).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+}
+
+// Persist only the given top-level fields of an event (multi-path update).
+// Never touches sibling fields (like bets/results) — this is what lets two
+// players save bets, or a commissioner edit fights, at the same moment
+// without one overwriting the other.
+function saveEventFields(ev, fields) {
+  if (!db) return;
+  const updates = {};
+  fields.forEach(f => { updates[`events/${ev.id}/${f}`] = ev[f] === undefined ? null : ev[f]; });
+  db.ref().update(updates).catch(e => { console.warn('save failed', e); toast('⚠️ Could not sync that change — check your connection', false); });
+}
+function savePlayers() {
+  if (!db) return;
+  db.ref('players').set(state.players).catch(e => { console.warn('save failed', e); toast('⚠️ Could not sync players list', false); });
+}
+function saveNewEvent(ev) {
+  if (!db) return;
+  db.ref('events/' + ev.id).set(ev).catch(e => console.warn('save failed', e));
+}
+function deleteEventRemote(evId) {
+  if (!db) return;
+  db.ref('events/' + evId).set(null).catch(e => console.warn('delete failed', e));
+}
+function saveBetsRemote(evId, playerId, betsArray) {
+  if (!db) return;
+  db.ref(`events/${evId}/bets/${playerId}`).set(betsArray)
+    .catch(e => { console.warn('save failed', e); toast('⚠️ Could not sync your bets — try again', false); });
+}
+function saveLastSync(ts) {
+  if (!db) return;
+  db.ref('meta/lastSync').set(ts).catch(() => {});
+}
+
+let lastConnectionErrorMsg = null;
+
+function connectFirebase() {
+  try {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    db = firebase.database();
+  } catch (e) {
+    // A bad databaseURL (very common: the config snippet copied from Firebase
+    // console BEFORE creating the Realtime Database won't include one) throws
+    // synchronously right here. Without this catch, nothing below ever runs
+    // and the app looks permanently "stuck connecting" with no explanation.
+    console.error('Firebase init failed:', e);
+    lastConnectionErrorMsg = e.message || String(e);
+    updateSyncStatus(false);
+    return;
+  }
+
+  db.ref('players').on('value', snap => {
+    const val = snap.val();
+    if (val === null) {
+      db.ref('meta/seeded').once('value').then(s => {
+        if (!s.val()) {
+          const seeded = DEFAULT_PLAYERS.map(name => ({ id: uid(), name }));
+          db.ref('players').set(seeded);
+          db.ref('meta/seeded').set(true);
+        }
+      });
+      state.players = [];
+    } else {
+      state.players = Array.isArray(val) ? val.filter(Boolean) : Object.values(val);
+    }
+    dbReady = true;
+    lastConnectionErrorMsg = null;
+    renderAll();
+  }, err => connectionError(err));
+
+  db.ref('events').on('value', snap => {
+    try {
+      state.events = eventsMapToArray(snap.val());
+      applyAutoLocks();
+    } catch (e) {
+      console.error('events snapshot processing failed:', e);
+    }
+    renderAll();
+  }, err => connectionError(err));
+
+  db.ref('meta/lastSync').on('value', snap => { state.lastSync = snap.val() || 0; updateSyncStatus(); });
+
+  db.ref('.info/connected').on('value', snap => updateSyncStatus(!!snap.val()));
+
+  // If we still haven't loaded anything after 8s, something's misconfigured
+  // (rules not published, "locked mode" selected instead of "test mode", or a
+  // typo in the config). Surface a concrete diagnostic instead of an infinite
+  // silent "Connecting…".
+  setTimeout(() => { if (!dbReady) updateSyncStatus(false); }, 8000);
+}
+
+function connectionError(err) {
+  console.warn('Firebase error', err);
+  lastConnectionErrorMsg = (err && err.message) || String(err);
+  updateSyncStatus(false);
+  toast('⚠️ Could not reach the shared database — check your Firebase rules/config', false);
+}
+
+function updateSyncStatus(connected) {
+  const el = document.getElementById('sync-status');
+  if (!el) return;
+  if (connected === false) {
+    if (dbReady) { el.innerHTML = '🔴 Offline — reconnecting…'; return; }
+    // Never successfully loaded data at all — this is almost always a Firebase
+    // Database Rules or config problem, not a network blip. Say so plainly.
+    el.innerHTML = `🔴 Can't reach the shared database.
+      <span class="text-gray-400">Most likely cause: your Realtime Database Rules aren't published as
+      <code class="bg-brl-card2 border border-brl-line px-1 rounded">{"rules":{".read":true,".write":true}}</code>,
+      or the database was created in "locked mode" instead of "test mode".</span>
+      ${lastConnectionErrorMsg ? `<span class="text-gray-600"> (${esc(lastConnectionErrorMsg)})</span>` : ''}`;
+    return;
+  }
+  el.innerHTML = `🟢 Live &middot; connected to shared league`;
+}
+
+/* ---------------- season totals & wins/titles ---------------- */
+function seasonTotal(playerId) {
+  return state.events
+    .filter(ev => ev.status === 'completed')
+    .reduce((sum, ev) => sum + (ev.results && ev.results[playerId] ? ev.results[playerId].bankroll : START_BANKROLL), 0);
+}
+function completedCount() { return state.events.filter(e => e.status === 'completed').length; }
+
+function nightWinnerIds(ev) {
+  if (ev.status !== 'completed' || !state.players.length) return [];
+  const bankOf = p => (ev.results && ev.results[p.id]) ? ev.results[p.id].bankroll : START_BANKROLL;
+  const best = Math.max(...state.players.map(bankOf));
+  return state.players.filter(p => bankOf(p) === best).map(p => p.id);
+}
+function winsCount(playerId) {
+  return state.events.filter(e => e.status === 'completed' && nightWinnerIds(e).includes(playerId)).length;
+}
+
+const TITLES = [
+  { wins: 50, name: 'GREATEST OF ALL TIME', emoji: '🐐', tier: 'goat' },
+  { wins: 40, name: 'Emperor of Predictions', emoji: '👑', tier: 'emperor' },
+  { wins: 30, name: 'Champion', emoji: '🏆', tier: 'champion' },
+  { wins: 20, name: 'Contender', emoji: '🔥', tier: 'contender' },
+  { wins: 10, name: 'Prospect', emoji: '🥊', tier: 'prospect' },
+];
+function titleFor(wins) { return TITLES.find(t => wins >= t.wins) || null; }
+function nextTitle(wins) {
+  const upcoming = TITLES.filter(t => wins < t.wins).sort((a, b) => a.wins - b.wins);
+  return upcoming[0] || null;
+}
+function titleBadgeHtml(wins) {
+  const t = titleFor(wins);
+  if (!t) return '';
+  return `<span class="title-badge title-${t.tier}">${t.emoji} ${esc(t.name)}</span>`;
+}
+
+/* ---------------- tabs ---------------- */
+function showTab(name) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
+  document.getElementById('tab-' + name).classList.remove('hidden');
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+  renderAll();
+  window.scrollTo({top: 0});
+}
+
+/* =====================================================================
+   DEMO FIGHT CARD (opt-in illustration only — never auto-loaded into a
+   real shared league). Uses the same 3 default names so it's readable
+   even before real bets exist.
+   ===================================================================== */
+function buildDemoEvent() {
+  const F = (f1, o1, f2, o2) => ({ id: uid(), f1, f2, odds1: o1, odds2: o2, winner: null });
+  const fights = [
+    F('Islam Makhachev', -350, 'Charles Oliveira', +280),
+    F('Alexandre Pantoja', -190, 'Kai Kara-France', +160),
+    F('Renato Moicano', -140, 'Beneil Dariush', +120),
+    F('Payton Talbott', -260, 'Felipe Lima', +210),
+    F('Brandon Royval', -155, 'Joshua Van', +130),
+    F('Jose Delgado', -300, 'Hyder Amil', +240),
+    F('Tracy Cortez', -210, 'Viviane Araujo', +175),
+    F('Viacheslav Borshchev', -125, 'Terrance McKinney', +105),
+    F('Gregory Rodrigues', -180, 'Jack Hermansson', +150),
+  ];
+  return { id: uid(), name: 'DEMO: UFC 317: Makhachev vs Oliveira 2', status: 'betting',
+           createdAt: Date.now(), fights, bets: {}, results: {} };
+}
+function loadDemoEvent(confirmFirst) {
+  if (confirmFirst && !confirm('Add a demo fight card (with sample odds) to the league so you can see how betting works? You can delete it any time from 🥊 Events.')) return;
+  const ev = buildDemoEvent();
+  state.events.unshift(ev);
+  renderAll();
+  saveNewEvent(ev);
+  toast('🎬 Demo fight card added — try placing a bet on it!');
+}
+
+/* =====================================================================
+   LEAGUE MANAGEMENT
+   ===================================================================== */
+function addPlayer() {
+  const input = document.getElementById('new-player-name');
+  const name = input.value.trim();
+  if (!name) return toast('Enter a name first', false);
+  if (state.players.some(p => p.name.toLowerCase() === name.toLowerCase()))
+    return toast('That name is already in the league', false);
+  state.players.push({ id: uid(), name });
+  input.value = '';
+  renderAll();
+  savePlayers();
+  toast(`🥊 ${name} joined the league!`);
+}
+
+function removePlayer(id) {
+  const p = state.players.find(p => p.id === id);
+  if (!p) return;
+  if (!confirm(`Remove ${p.name} from the league? Their bets and history stay recorded, but they leave the standings.`)) return;
+  state.players = state.players.filter(pl => pl.id !== id);
+  renderAll();
+  savePlayers();
+  toast(`${p.name} removed`);
+}
+
+function exportLeague() {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'bragging-rights-league.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('⬇️ League exported');
+}
+
+function importLeague(evt) {
+  const file = evt.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      if (!Array.isArray(data.players) || !Array.isArray(data.events)) throw new Error('bad format');
+      if (!confirm('Import will REPLACE the entire shared league for everyone. Continue?')) return;
+      state.players = data.players;
+      state.events = data.events;
+      ui = { bettorId: '', bettingEventId: '', draft: {}, resultsEventId: '' };
+      renderAll();
+      // Push to Firebase: wipe events, then write players + each event fresh
+      if (db) {
+        db.ref('events').set(null)
+          .then(() => Promise.all(data.events.map(ev => db.ref('events/' + ev.id).set(ev))))
+          .then(() => db.ref('players').set(data.players))
+          .catch(e => console.warn('import sync failed', e));
+      }
+      toast('⬆️ League imported and synced to everyone!');
+    } catch(e) {
+      toast('That file is not a valid league export', false);
+    }
+  };
+  reader.readAsText(file);
+  evt.target.value = '';
+}
+
+function resetEverything() {
+  if (!confirm('💣 Reset EVERYTHING for the whole league (all players, events, bets, history)? This affects everyone.')) return;
+  if (!confirm('Last chance — this cannot be undone. Really wipe the shared league?')) return;
+  state = { players: [], events: [], lastSync: 0 };
+  ui = { bettorId: '', bettingEventId: '', draft: {}, resultsEventId: '' };
+  renderAll();
+  if (db) {
+    db.ref('events').set(null);
+    db.ref('players').set(null);
+    db.ref('meta').set(null);
+  }
+  toast('League wiped. Fresh start.');
+}
+
+/* =====================================================================
+   EVENTS — create / edit fight cards / status
+   ===================================================================== */
+function createEvent() {
+  const name = prompt('Event name (e.g. "UFC 318" or "Fight Night: Vegas"):');
+  if (!name || !name.trim()) return;
+  const ev = { id: uid(), name: name.trim(), status: 'betting', createdAt: Date.now(), fights: [], bets: {}, results: {} };
+  state.events.unshift(ev);
+  renderAll();
+  saveNewEvent(ev);
+  toast(`🥊 ${name.trim()} created — add some fights!`);
+}
+
+function renameEvent(evId) {
+  const ev = state.events.find(e => e.id === evId); if (!ev) return;
+  const name = prompt('Event name:', ev.name);
+  if (name && name.trim()) { ev.name = name.trim(); renderAll(); saveEventFields(ev, ['name']); }
+}
+
+function deleteEvent(evId) {
+  const ev = state.events.find(e => e.id === evId); if (!ev) return;
+  if (!confirm(`Delete "${ev.name}" and all its bets/results for everyone?`)) return;
+  state.events = state.events.filter(e => e.id !== evId);
+  renderAll();
+  deleteEventRemote(evId);
+  toast('Event deleted');
+}
+
+function addFight(evId) {
+  const ev = state.events.find(e => e.id === evId); if (!ev) return;
+  ev.fights.push({ id: uid(), f1: 'Fighter 1', f2: 'Fighter 2', odds1: -150, odds2: +130, winner: null });
+  renderAll();
+  saveEventFields(ev, ['fights']);
+}
+
+function removeFight(evId, fightId) {
+  const ev = state.events.find(e => e.id === evId); if (!ev) return;
+  if (!confirm('Remove this fight? Any bets on it are removed too.')) return;
+  ev.fights = ev.fights.filter(f => f.id !== fightId);
+  Object.keys(ev.bets || {}).forEach(pid => { ev.bets[pid] = ev.bets[pid].filter(b => b.fightId !== fightId); });
+  renderAll();
+  saveEventFields(ev, ['fights', 'bets']);
+}
+
+function updateFight(evId, fightId, field, value) {
+  const ev = state.events.find(e => e.id === evId); if (!ev) return;
+  if (ev.status === 'completed') return toast('Event is completed — reopen results to edit', false);
+  const f = ev.fights.find(f => f.id === fightId); if (!f) return;
+  if (fightLocked(f) && ev.status === 'betting') { renderEvents(); return toast('🔒 This fight is locked — its odds and names are frozen for fairness', false); }
+  if (field === 'odds1' || field === 'odds2') {
+    const n = parseInt(value, 10);
+    if (isNaN(n) || n === 0 || (n > -100 && n < 100)) return toast('Odds must be ≥ +100 or ≤ −100 (e.g. -180, +250)', false);
+    f[field] = n;
+    f.oddsPending = false;
+  } else {
+    f[field] = String(value).trim() || f[field];
+  }
+  renderAll();
+  saveEventFields(ev, ['fights']);
+}
+
+function setEventStatus(evId, status) {
+  const ev = state.events.find(e => e.id === evId); if (!ev) return;
+  ev.status = status;
+  renderAll();
+  saveEventFields(ev, ['status']);
+  const labels = { betting: '🟢 Betting is OPEN', pending: '🟡 Betting closed — waiting on results', completed: '✅ Event completed' };
+  toast(labels[status] || status);
+}
+
+/* =====================================================================
+   ESPN AUTO-SYNC — upcoming UFC events, fight cards, odds, 30-min lock
+   ===================================================================== */
+const ESPN_SCOREBOARD_URL = 'https://site.api.espn.com/apis/site/v2/sports/mma/ufc/scoreboard';
+const ESPN_CORE_URL = 'https://sports.core.api.espn.com/v2/sports/mma/leagues/ufc';
+const LOCK_MS = 30 * 60 * 1000;
+const SYNC_STALE_MS = 12 * 60 * 60 * 1000;
+const SYNC_LOOKAHEAD_DAYS = 14;
+
+function fightLocked(f) { return !!f.startTime && Date.now() >= Date.parse(f.startTime) - LOCK_MS; }
+function lockCountdown(f) {
+  if (!f.startTime) return '';
+  const ms = Date.parse(f.startTime) - LOCK_MS - Date.now();
+  if (ms <= 0) return '🔒 Betting locked';
+  const m = Math.floor(ms / 60000), d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60);
+  return '⏰ Locks in ' + (d ? d + 'd ' : '') + (h ? h + 'h ' : '') + (m % 60) + 'm';
+}
+function fmtFightTime(iso) {
+  if (!iso) return '';
+  return new Date(iso).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+function fmtSyncTime(ts) { return ts ? new Date(ts).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'never'; }
+
+function espnDateRange() {
+  const fmt = d => d.toISOString().slice(0, 10).replace(/-/g, '');
+  return fmt(new Date()) + '-' + fmt(new Date(Date.now() + SYNC_LOOKAHEAD_DAYS * 86400000));
+}
+
+function parseEspnFights(apiEv) {
+  return (apiEv.competitions || []).slice().reverse().map(c => {
+    const byOrder = (c.competitors || []).slice().sort((a, b) => (a.order || 0) - (b.order || 0));
+    const [c1, c2] = byOrder;
+    return {
+      espnCompId: String(c.id),
+      f1: c1 && c1.athlete ? c1.athlete.displayName : 'TBD',
+      f2: c2 && c2.athlete ? c2.athlete.displayName : 'TBD',
+      a1: c1 ? String(c1.id) : null,
+      a2: c2 ? String(c2.id) : null,
+      startTime: c.startDate || c.date || apiEv.date || null,
+      completed: !!(c.status && c.status.type && c.status.type.completed),
+      winner: c1 && c1.winner ? 1 : (c2 && c2.winner ? 2 : null),
+    };
+  });
+}
+function newFightFromEspn(pf) {
+  return { id: uid(), f1: pf.f1, f2: pf.f2, odds1: -110, odds2: -110, oddsPending: true,
+           winner: null, startTime: pf.startTime, espnCompId: pf.espnCompId, a1: pf.a1, a2: pf.a2 };
+}
+
+// Returns {ev, kind:'created'|'updated'|'skipped'} — never writes to Firebase itself;
+// the caller decides how to persist (new doc vs. targeted field update).
+function mergeEspnEvent(apiEv) {
+  const parsed = parseEspnFights(apiEv);
+  let ev = state.events.find(e => e.espnId === String(apiEv.id));
+  if (!ev) {
+    ev = { id: uid(), espnId: String(apiEv.id), name: apiEv.name || 'UFC Event', status: 'betting',
+           createdAt: Date.now(), date: apiEv.date || null, fights: parsed.map(newFightFromEspn),
+           bets: {}, results: {} };
+    state.events.unshift(ev);
+    return { ev, kind: 'created' };
+  }
+  if (ev.status === 'completed') return { ev, kind: 'skipped' };
+  ev.name = apiEv.name || ev.name;
+  ev.date = apiEv.date || ev.date;
+  parsed.forEach(pf => {
+    const f = ev.fights.find(f => f.espnCompId === pf.espnCompId);
+    if (!f) { ev.fights.push(newFightFromEspn(pf)); return; }
+    if (!fightLocked(f)) { f.f1 = pf.f1; f.f2 = pf.f2; }
+    f.startTime = pf.startTime; f.a1 = pf.a1; f.a2 = pf.a2;
+  });
+  const liveIds = new Set(parsed.map(p => p.espnCompId));
+  ev.fights = ev.fights.filter(f => {
+    if (!f.espnCompId || liveIds.has(f.espnCompId)) return true;
+    return Object.values(ev.bets || {}).some(bs => bs.some(b => b.fightId === f.id));
+  });
+  return { ev, kind: 'updated' };
+}
+
+function extractMoneyline(so) {
+  if (!so) return null;
+  let ml = so.moneyLine;
+  if (ml === undefined && so.current && so.current.moneyLine) ml = so.current.moneyLine.american ?? so.current.moneyLine.value;
+  if (typeof ml === 'string') ml = parseInt(ml.replace('+', ''), 10);
+  return (typeof ml === 'number' && isFinite(ml) && (ml >= 100 || ml <= -100)) ? Math.round(ml) : null;
+}
+
+async function fetchOddsForEvent(ev) {
+  const targets = ev.fights.filter(f => f.espnCompId && f.oddsPending);
+  let touched = false;
+  await Promise.allSettled(targets.map(async f => {
+    const resp = await fetch(`${ESPN_CORE_URL}/events/${ev.espnId}/competitions/${f.espnCompId}/odds`);
+    if (!resp.ok) return;
+    const data = await resp.json();
+    const item = (data.items || [])[0];
+    if (!item) return;
+    let o1 = null, o2 = null;
+    for (const so of [item.homeAthleteOdds || item.homeTeamOdds, item.awayAthleteOdds || item.awayTeamOdds]) {
+      const ml = extractMoneyline(so);
+      if (ml === null) continue;
+      const aid = ((so.athlete && so.athlete.$ref || '').match(/athletes\/(\d+)/) || [])[1];
+      if (aid && aid === f.a1) o1 = ml;
+      else if (aid && aid === f.a2) o2 = ml;
+      else if (o1 === null) o1 = ml;
+      else o2 = ml;
+    }
+    if (o1 !== null && o2 !== null) { f.odds1 = o1; f.odds2 = o2; f.oddsPending = false; touched = true; }
+  }));
+  return touched;
+}
+
+async function syncWithESPN(manual) {
+  if (syncWithESPN._busy) return;
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    if (manual) toast('You appear to be offline — sync skipped', false);
+    return;
+  }
+  syncWithESPN._busy = true;
+  if (manual) toast('📡 Syncing with ESPN…');
+  try {
+    const resp = await fetch(`${ESPN_SCOREBOARD_URL}?dates=${espnDateRange()}`);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    let created = 0;
+    const touchedEvents = [];
+    for (const apiEv of (data.events || [])) {
+      const { ev, kind } = mergeEspnEvent(apiEv);
+      if (kind === 'created') { created++; saveNewEvent(ev); }
+      else if (kind === 'updated') { touchedEvents.push(ev); }
+    }
+    for (const ev of state.events.filter(e => e.espnId && e.status !== 'completed')) {
+      const gotOdds = await fetchOddsForEvent(ev);
+      if (gotOdds && !touchedEvents.includes(ev)) touchedEvents.push(ev);
+    }
+    touchedEvents.forEach(ev => saveEventFields(ev, ['name', 'date', 'fights']));
+    state.lastSync = Date.now();
+    saveLastSync(state.lastSync);
+    applyAutoLocks();
+    renderAll();
+    if (manual) toast(`📡 Synced with ESPN — ${created ? created + ' new event(s) added' : 'schedule up to date'}`);
+  } catch (e) {
+    console.warn('ESPN sync failed', e);
+    if (manual) toast('ESPN sync failed — check your connection and try again', false);
+  } finally {
+    syncWithESPN._busy = false;
+  }
+}
+
+async function fetchWinnersFromESPN(evId) {
+  const ev = state.events.find(e => e.id === evId);
+  if (!ev || !ev.espnId) return toast('This event is not linked to ESPN — pick winners manually', false);
+  toast('📡 Fetching winners from ESPN…');
+  try {
+    const d = ev.date ? new Date(ev.date) : new Date();
+    const fmt = x => x.toISOString().slice(0, 10).replace(/-/g, '');
+    const resp = await fetch(`${ESPN_SCOREBOARD_URL}?dates=${fmt(new Date(d.getTime() - 86400000))}-${fmt(new Date(d.getTime() + 86400000))}`);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    const apiEv = (data.events || []).find(e => String(e.id) === ev.espnId);
+    if (!apiEv) return toast('ESPN has no data for this event window', false);
+    let filled = 0;
+    parseEspnFights(apiEv).forEach(pf => {
+      const f = ev.fights.find(f => f.espnCompId === pf.espnCompId);
+      if (f && pf.completed && pf.winner) { f.winner = pf.winner; filled++; }
+    });
+    renderResults();
+    if (filled) saveEventFields(ev, ['fights']);
+    toast(filled ? `⚡ ${filled} winner${filled === 1 ? '' : 's'} filled in from ESPN` : 'No finished fights on ESPN yet — try after the event', !!filled);
+  } catch (e) {
+    toast('Could not fetch winners — try again later', false);
+  }
+}
+
+function applyAutoLocks() {
+  let anyChanged = false;
+  state.events.forEach(ev => {
+    const fights = ev.fights || [];
+    if (ev.status === 'betting' && fights.length && fights.every(f => fightLocked(f))) {
+      ev.status = 'pending';
+      saveEventFields(ev, ['status']);
+      anyChanged = true;
+    }
+  });
+  return anyChanged;
+}
+
+/* =====================================================================
+   RENDER: STANDINGS (now with Wins + Title ladder)
+   ===================================================================== */
+function renderStandings() {
+  const el = document.getElementById('standings-content');
+  const champEl = document.getElementById('header-champ');
+  if (!dbReady) { el.innerHTML = emptyBox('Connecting…', 'Loading your shared league.'); champEl.innerHTML=''; return; }
+  if (!state.players.length) {
+    champEl.innerHTML = '';
+    el.innerHTML = emptyBox('No players yet.', 'Head to ⚙️ League to add players.');
+    return;
+  }
+  const completed = state.events.filter(e => e.status === 'completed');
+  const rows = state.players
+    .map(p => ({ p, total: seasonTotal(p.id), wins: winsCount(p.id) }))
+    .sort((a, b) => b.wins - a.wins || b.total - a.total);
+
+  if (rows.length && rows[0].wins > 0) {
+    champEl.innerHTML = `<div class="text-[10px] uppercase tracking-widest text-gray-500">Current champ</div>
+      <div class="font-display text-2xl text-brl-lime2 uppercase">👑 ${esc(rows[0].p.name)}</div>
+      <div class="text-xs text-gray-400">${rows[0].wins} win${rows[0].wins===1?'':'s'} · ${fmtPts(rows[0].total)} pts</div>`;
+  } else {
+    champEl.innerHTML = `<div class="text-[10px] uppercase tracking-widest text-gray-600">Belt unclaimed<br>— no completed events yet</div>`;
+  }
+
+  const medal = i => ['🥇','🥈','🥉'][i] || `<span class="text-gray-600">#${i+1}</span>`;
+  let html = `<div class="octa bg-brl-card border border-brl-line overflow-x-auto mb-4">
+    <table class="w-full text-sm min-w-[560px]">
+      <thead><tr class="text-left text-[11px] uppercase tracking-wider text-gray-500 border-b border-brl-line">
+        <th class="px-4 py-3">Rank</th><th class="px-4 py-3">Fighter</th>
+        <th class="px-4 py-3 text-center">🏅 Wins</th>
+        ${completed.map(ev => `<th class="px-4 py-3 whitespace-nowrap" title="${esc(ev.name)}">${esc(shortName(ev.name))}</th>`).join('')}
+        <th class="px-4 py-3 text-right">Season Total</th>
+      </tr></thead><tbody>`;
+  rows.forEach((r, i) => {
+    const next = nextTitle(r.wins);
+    html += `<tr class="border-b border-brl-line/50 ${i===0 && r.wins>0 ? 'bg-brl-green/5' : ''}">
+      <td class="px-4 py-3 text-lg">${medal(i)}</td>
+      <td class="px-4 py-3">
+        <div class="font-bold text-white">${esc(r.p.name)}${i===0 && r.wins>0 ? ' <span class="text-brl-lime2">👑</span>' : ''}</div>
+        <div class="mt-1 flex flex-col gap-0.5">
+          ${titleBadgeHtml(r.wins) || '<span class="text-[10px] text-gray-600">Unranked</span>'}
+          ${next ? `<span class="text-[10px] text-gray-500">${next.wins - r.wins} win${next.wins-r.wins===1?'':'s'} to ${next.emoji} ${esc(next.name)}</span>` : '<span class="text-[10px] text-brl-lime2">Maxed out 🐐</span>'}
+        </div>
+      </td>
+      <td class="px-4 py-3 text-center font-display text-xl text-white">${r.wins}</td>
+      ${completed.map(ev => {
+        const res = ev.results && ev.results[r.p.id];
+        const bank = res ? res.bankroll : START_BANKROLL;
+        const diff = bank - START_BANKROLL;
+        const cls = diff > 0 ? 'text-green-400' : diff < 0 ? 'text-red-400' : 'text-gray-400';
+        const wonNight = nightWinnerIds(ev).includes(r.p.id);
+        return `<td class="px-4 py-3 ${cls}">${fmtPts(bank)}${wonNight ? ' 🏅' : ''}</td>`;
+      }).join('')}
+      <td class="px-4 py-3 text-right font-display text-xl ${i===0 && r.wins>0 ? 'text-brl-lime2' : 'text-white'}">${fmtPts(r.total)}</td>
+    </tr>`;
+  });
+  html += '</tbody></table></div>';
+  if (!completed.length) {
+    html += `<p class="text-xs text-gray-500 mt-3">No events completed yet — everyone sits at 0 wins. Finish an event in 🚨 Results to put points (and a win) on the board.</p>`;
+  }
+  el.innerHTML = html;
+}
+
+function shortName(name) { return name.length > 16 ? name.slice(0, 15) + '…' : name; }
+function emptyBox(title, sub) {
+  return `<div class="octa bg-brl-card border border-dashed border-brl-line p-10 text-center">
+    <div class="text-3xl mb-2">🦗</div>
+    <div class="font-bold text-gray-300">${title}</div>
+    <div class="text-sm text-gray-500 mt-1">${sub}</div></div>`;
+}
+const statusBadge = s => ({
+  betting:   '<span class="text-[10px] font-bold uppercase tracking-wider bg-green-900/60 text-green-300 border border-green-700 px-2 py-1 rounded">🟢 Betting Open</span>',
+  pending:   '<span class="text-[10px] font-bold uppercase tracking-wider bg-yellow-900/60 text-yellow-300 border border-yellow-700 px-2 py-1 rounded">🟡 Results Pending</span>',
+  completed: '<span class="text-[10px] font-bold uppercase tracking-wider bg-brl-card2 text-gray-300 border border-brl-line px-2 py-1 rounded">✅ Completed</span>',
+}[s] || s);
+
+/* =====================================================================
+   RENDER: EVENTS (fight card editor)
+   ===================================================================== */
+function renderEvents() {
+  const el = document.getElementById('events-content');
+  if (!dbReady) { el.innerHTML = emptyBox('Connecting…', 'Loading your shared league.'); return; }
+  const syncBar = `<div class="octa-sm bg-brl-card2 border border-brl-line px-4 py-3 mb-5 flex flex-wrap items-center justify-between gap-3">
+    <div class="text-xs text-gray-400">
+      📡 <b class="text-white">ESPN auto-update:</b> upcoming UFC events (next ${SYNC_LOOKAHEAD_DAYS} days) sync automatically each time you open the app.
+      <span class="text-gray-500">Last synced: ${fmtSyncTime(state.lastSync)}</span>
+    </div>
+    <button onclick="syncWithESPN(true)" class="octa-sm bg-brl-card border border-brl-lime text-brl-lime2 hover:bg-brl-lime hover:text-black font-bold px-4 py-2 text-xs uppercase">🔄 Sync now</button>
+  </div>`;
+  if (!state.events.length) {
+    el.innerHTML = syncBar + emptyBox('No events yet.', 'Hit "🔄 Sync now" to pull the upcoming UFC schedule from ESPN, or "+ New Event" to build a card by hand.');
+    return;
+  }
+  el.innerHTML = syncBar + state.events.map(ev => {
+    const locked = ev.status === 'completed';
+    const betCount = Object.values(ev.bets || {}).filter(b => b.length).length;
+    return `<div class="octa bg-brl-card border border-brl-line p-4 sm:p-5 mb-5">
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <h3 class="font-display text-2xl text-white uppercase">${esc(ev.name)}</h3>
+            ${statusBadge(ev.status)}
+            ${ev.espnId ? '<span class="text-[10px] font-bold uppercase tracking-wider bg-blue-950/60 text-blue-300 border border-blue-800 px-2 py-1 rounded">📡 ESPN synced</span>' : ''}
+          </div>
+          <div class="text-xs text-gray-500 mt-1">${ev.date ? '📅 ' + esc(fmtFightTime(ev.date)) + ' · ' : ''}${ev.fights.length} fights · ${betCount} player${betCount===1?'':'s'} with bets${ev.espnId ? ' · betting auto-locks 30 min before each fight' : ''}</div>
+        </div>
+        <div class="flex gap-2 flex-wrap">
+          ${ev.status === 'betting' ? `<button onclick="setEventStatus('${ev.id}','pending')" class="octa-sm bg-brl-card2 border border-yellow-700 text-yellow-300 text-xs font-bold uppercase px-3 py-2 hover:bg-yellow-900/40">🔒 Close betting</button>` : ''}
+          ${ev.status === 'pending' ? `<button onclick="setEventStatus('${ev.id}','betting')" class="octa-sm bg-brl-card2 border border-green-700 text-green-300 text-xs font-bold uppercase px-3 py-2 hover:bg-green-900/40">🔓 Reopen betting</button>` : ''}
+          <button onclick="renameEvent('${ev.id}')" class="octa-sm bg-brl-card2 border border-brl-line text-gray-300 text-xs font-bold uppercase px-3 py-2 hover:border-brl-lime">✏️ Rename</button>
+          <button onclick="deleteEvent('${ev.id}')" class="octa-sm bg-brl-card2 border border-red-900 text-red-400 text-xs font-bold uppercase px-3 py-2 hover:bg-red-950">🗑️</button>
+        </div>
+      </div>
+      ${locked ? '<p class="text-xs text-yellow-500/80 mb-3">🔒 This event is completed. Reopen it from 📜 History to edit fights or results.</p>' : ''}
+      <div class="space-y-2">
+        ${ev.fights.map((f, i) => renderFightEditor(ev, f, i, locked)).join('') ||
+          '<p class="text-sm text-gray-500 italic">No fights yet — add the first matchup 👇</p>'}
+      </div>
+      ${!locked ? `<button onclick="addFight('${ev.id}')" class="mt-3 octa-sm bg-brl-card2 border border-brl-line hover:border-brl-green text-gray-200 text-sm font-bold uppercase px-4 py-2">+ Add fight</button>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function renderFightEditor(ev, f, i, locked) {
+  const fLocked = fightLocked(f) && ev.status === 'betting';
+  const dis = (locked || fLocked) ? 'disabled' : '';
+  const timeLine = f.startTime
+    ? `<div class="text-[10px] mt-1 ${fightLocked(f) ? 'text-red-400' : 'text-gray-500'}">${fightLocked(f) ? '🔒 Betting locked' : '⏰ ' + esc(fmtFightTime(f.startTime)) + ' · ' + lockCountdown(f)}${f.oddsPending ? ' · ⏳ odds TBD' : ''}</div>`
+    : '';
+  const inputCls = 'bg-brl-black border border-brl-line rounded px-2 py-1.5 text-sm w-full focus:border-brl-lime focus:outline-none disabled:opacity-50';
+  return `<div class="bg-brl-card2/60 border border-brl-line rounded p-3">
+    <div class="grid grid-cols-[1fr_auto] sm:grid-cols-[auto_1fr_90px_auto_1fr_90px_auto] gap-2 items-center">
+      <span class="text-[10px] text-gray-500 font-bold uppercase hidden sm:block">#${i+1}</span>
+      <input ${dis} class="${inputCls}" value="${esc(f.f1)}" title="Fighter 1 name"
+        onchange="updateFight('${ev.id}','${f.id}','f1',this.value)">
+      <input ${dis} class="${inputCls} text-center font-bold ${f.odds1>0?'text-brl-lime2':'text-gray-200'}" value="${fmtOdds(f.odds1)}" title="Fighter 1 American odds"
+        onchange="updateFight('${ev.id}','${f.id}','odds1',this.value)">
+      <span class="font-display text-brl-green2 text-sm px-1 text-center col-span-2 sm:col-span-1">VS</span>
+      <input ${dis} class="${inputCls}" value="${esc(f.f2)}" title="Fighter 2 name"
+        onchange="updateFight('${ev.id}','${f.id}','f2',this.value)">
+      <input ${dis} class="${inputCls} text-center font-bold ${f.odds2>0?'text-brl-lime2':'text-gray-200'}" value="${fmtOdds(f.odds2)}" title="Fighter 2 American odds"
+        onchange="updateFight('${ev.id}','${f.id}','odds2',this.value)">
+      ${!locked && !fLocked ? `<button onclick="removeFight('${ev.id}','${f.id}')" class="text-red-500/70 hover:text-red-400 text-sm px-1" title="Remove fight">✖</button>` : '<span></span>'}
+    </div>
+    ${timeLine}
+  </div>`;
+}
+
+/* =====================================================================
+   RENDER: BETTING
+   ===================================================================== */
+function renderBetting() {
+  const el = document.getElementById('betting-content');
+  if (!dbReady) { el.innerHTML = emptyBox('Connecting…', 'Loading your shared league.'); return; }
+  const openEvents = state.events.filter(e => e.status === 'betting');
+
+  if (!state.players.length) { el.innerHTML = emptyBox('No players yet.', 'Add players in ⚙️ League first.'); return; }
+  if (!openEvents.length)   { el.innerHTML = emptyBox('No events open for betting.', 'Create an event (🥊 Events) or reopen one.'); return; }
+
+  if (!openEvents.some(e => e.id === ui.bettingEventId)) { ui.bettingEventId = openEvents[0].id; ui.draft = {}; }
+  const ev = openEvents.find(e => e.id === ui.bettingEventId);
+
+  let html = `<div class="flex flex-wrap gap-3 mb-5">
+    <div class="flex-1 min-w-[180px]">
+      <label class="block text-[10px] uppercase tracking-wider text-gray-500 font-bold mb-1">Who's betting?</label>
+      <select onchange="selectBettor(this.value)" class="w-full bg-brl-card border border-brl-line rounded px-3 py-2.5 text-sm font-bold focus:border-brl-lime focus:outline-none">
+        <option value="">— Select your name —</option>
+        ${state.players.map(p => `<option value="${p.id}" ${p.id===ui.bettorId?'selected':''}>${esc(p.name)}</option>`).join('')}
+      </select>
+    </div>
+    <div class="flex-1 min-w-[180px]">
+      <label class="block text-[10px] uppercase tracking-wider text-gray-500 font-bold mb-1">Event</label>
+      <select onchange="selectBettingEvent(this.value)" class="w-full bg-brl-card border border-brl-line rounded px-3 py-2.5 text-sm font-bold focus:border-brl-lime focus:outline-none">
+        ${openEvents.map(e => `<option value="${e.id}" ${e.id===ev.id?'selected':''}>${esc(e.name)}${e.date ? ' — ' + esc(fmtFightTime(e.date)) : ''}</option>`).join('')}
+      </select>
+    </div>
+  </div>`;
+
+  if (!ui.bettorId) {
+    html += `<div class="octa bg-brl-card border border-brl-line p-8 text-center mb-6">
+      <div class="text-4xl mb-2">👆</div>
+      <p class="font-bold text-gray-200">Select your name to start betting.</p>
+      <p class="text-sm text-gray-500 mt-1">You get ${START_BANKROLL} points. Spend them wisely… or don't. 😈</p>
+    </div>`;
+  } else if (!ev.fights.length) {
+    html += emptyBox('This event has no fights yet.', 'Add fights in the 🥊 Events tab.');
+  } else {
+    const totalStaked = draftTotal();
+    const remaining = START_BANKROLL - totalStaked;
+    html += `<div class="sticky top-[49px] z-30 mb-4">
+      <div class="octa-sm bg-brl-card2 border ${remaining < 0 ? 'border-red-600' : 'border-brl-lime/60'} px-4 py-3 flex flex-wrap items-center justify-between gap-2 shadow-xl">
+        <div class="text-sm"><span class="text-gray-400">Betting as</span> <b class="text-white">${esc(playerName(ui.bettorId))}</b></div>
+        <div class="flex items-center gap-4">
+          <div class="text-sm"><span class="text-gray-400">Staked:</span> <b class="font-display text-xl ${remaining<0?'text-red-400':'text-brl-lime2'}">${totalStaked}</b><span class="text-gray-500"> / ${START_BANKROLL}</span></div>
+          <div class="text-sm hidden sm:block"><span class="text-gray-400">Safe:</span> <b class="text-white">${Math.max(remaining,0)}</b></div>
+          <button onclick="saveBets()" class="octa-sm ${remaining<0?'bg-gray-700 cursor-not-allowed':'bg-brl-green hover:bg-brl-green2'} text-white font-bold uppercase text-sm px-5 py-2">💾 Save my bets</button>
+        </div>
+      </div>
+      ${remaining < 0 ? '<p class="text-red-400 text-xs font-bold mt-1 text-center">⚠️ Over 1000! Remove some bets before saving.</p>' : ''}
+    </div>`;
+    html += ev.fights.map((f, i) => renderBetFightCard(ev, f, i)).join('');
+  }
+
+  html += renderAllBetsPanel(ev);
+  el.innerHTML = html;
+}
+
+function renderBetFightCard(ev, f, i) {
+  const pick = ui.draft[f.id];
+  const locked = fightLocked(f);
+  const sideBtn = (side, name, odds) => {
+    const sel = pick && pick.side === side;
+    const dog = odds >= 200;
+    return `<button onclick="pickSide('${f.id}',${side})" ${locked ? 'disabled' : ''}
+      class="side-btn ${sel?'selected':''} flex-1 octa-sm border border-brl-line bg-brl-black px-3 py-3 text-left ${locked ? 'opacity-50 cursor-not-allowed' : 'hover:border-brl-green'} transition-colors">
+      <div class="font-bold text-sm sm:text-base leading-tight">${esc(name)} ${dog ? '🔥' : ''}</div>
+      <div class="text-xs mt-0.5 ${sel ? 'text-white/80' : odds>0 ? 'text-brl-lime2' : 'text-gray-400'}">${fmtOdds(odds)} <span class="opacity-70">(${americanToDecimal(odds).toFixed(2)}×)</span></div>
+    </button>`;
+  };
+  let preview = '';
+  if (pick && pick.stake) {
+    const odds = pick.side === 1 ? f.odds1 : f.odds2;
+    const name = pick.side === 1 ? f.f1 : f.f2;
+    const profit = profitFor(pick.stake, odds);
+    const total = pick.stake * americanToDecimal(odds);
+    const big = profit >= 150;
+    preview = `<div class="mt-2 text-xs sm:text-sm ${big ? 'text-green-300' : 'text-green-400/90'}">
+      ✅ If <b>${esc(name)}</b> wins → <b class="${big ? 'text-lg font-display text-green-300' : ''}">+${fmtPts(profit)} profit</b>
+      <span class="text-gray-500">(total return: ${fmtPts(total)})</span> ${big ? '💰💰' : ''}</div>`;
+  } else if (pick && !pick.stake && !locked) {
+    preview = `<div class="mt-2 text-xs text-yellow-400">Pick a stake: 20, 60 or 100 👉</div>`;
+  }
+  const cd = lockCountdown(f);
+  const timeInfo = f.startTime
+    ? `<span class="${locked ? 'text-red-400' : 'text-gray-400'} normal-case font-normal">· ${esc(fmtFightTime(f.startTime))} ${cd ? '· ' + cd : ''}</span>`
+    : '';
+  const oddsPendingNote = f.oddsPending && !locked
+    ? `<div class="mt-2 text-xs text-yellow-500/90">⏳ Real odds not posted yet — showing −110/−110 placeholders. They'll update automatically when ESPN publishes the lines.</div>`
+    : '';
+  const lockedNote = locked
+    ? `<div class="mt-2 text-xs text-red-400 font-bold">🔒 Betting locked (closed 30 min before the fight).${pick && pick.stake ? ' Your saved bet on this fight stands.' : ''}</div>`
+    : '';
+  return `<div class="octa bg-brl-card border ${locked ? 'border-brl-line/60' : pick && pick.stake ? 'border-brl-green/70' : 'border-brl-line'} p-3 sm:p-4 mb-3 ${locked ? 'opacity-90' : ''}">
+    <div class="text-[10px] uppercase tracking-wider text-gray-500 font-bold mb-2">Fight ${i+1}${i===0 ? ' · Main event 🌟' : ''} ${timeInfo}</div>
+    <div class="flex flex-col sm:flex-row gap-2 items-stretch">
+      ${sideBtn(1, f.f1, f.odds1)}
+      <div class="self-center font-display text-brl-green2 px-1">VS</div>
+      ${sideBtn(2, f.f2, f.odds2)}
+    </div>
+    <div class="flex flex-wrap items-center gap-2 mt-3">
+      <span class="text-xs text-gray-500 font-bold uppercase">Stake:</span>
+      ${STAKES.map(s => `<button onclick="pickStake('${f.id}',${s})" ${locked ? 'disabled' : ''}
+          class="stake-btn ${pick && pick.stake === s ? 'selected' : ''} border border-brl-line bg-brl-black rounded px-4 py-1.5 text-sm font-bold ${locked ? 'opacity-50 cursor-not-allowed' : 'hover:border-brl-lime'}">${s}</button>`).join('')}
+      <button onclick="skipFight('${f.id}')" ${locked ? 'disabled' : ''} class="border border-brl-line bg-brl-black rounded px-4 py-1.5 text-sm text-gray-400 ${locked ? 'opacity-50 cursor-not-allowed' : 'hover:text-white hover:border-gray-500'}">Skip ✖</button>
+    </div>
+    ${preview}${oddsPendingNote}${lockedNote}
+  </div>`;
+}
+
+function renderAllBetsPanel(ev) {
+  const entries = Object.entries(ev.bets || {}).filter(([pid, bets]) => bets.length && state.players.some(p => p.id === pid));
+  let html = `<div class="mt-8"><h3 class="font-display text-2xl text-white uppercase mb-1">👀 Everyone's Bets — ${esc(ev.name)}</h3>
+    <p class="text-xs text-gray-500 mb-3">Full transparency, live from everyone's phone.</p>`;
+  if (!entries.length) {
+    html += `<p class="text-sm text-gray-500 italic">No bets saved yet. Be the first on the board.</p></div>`;
+    return html;
+  }
+  html += `<div class="grid gap-3 md:grid-cols-2">` + entries.map(([pid, bets]) => {
+    const staked = bets.reduce((s, b) => s + b.stake, 0);
+    const rows = bets.map(b => {
+      const f = ev.fights.find(f => f.id === b.fightId);
+      if (!f) return '';
+      const name = b.side === 1 ? f.f1 : f.f2;
+      const odds = b.side === 1 ? f.odds1 : f.odds2;
+      return `<div class="flex justify-between text-sm py-1 border-b border-brl-line/40 last:border-0">
+        <span>${odds >= 200 ? '🔥 ' : ''}${esc(name)} <span class="text-gray-500 text-xs">${fmtOdds(odds)}</span></span>
+        <span class="text-brl-lime2 font-bold">${b.stake}</span></div>`;
+    }).join('');
+    return `<div class="octa-sm bg-brl-card border border-brl-line p-4">
+      <div class="flex justify-between items-center mb-2">
+        <b class="text-white">${esc(playerName(pid))}</b>
+        <span class="text-xs text-gray-400">${staked} staked · ${START_BANKROLL - staked} safe</span>
+      </div>${rows}</div>`;
+  }).join('') + '</div></div>';
+  return html;
+}
+
+/* ---------------- betting actions ---------------- */
+function selectBettor(pid) { ui.bettorId = pid; loadDraftFromSaved(); renderBetting(); }
+function selectBettingEvent(evId) { ui.bettingEventId = evId; loadDraftFromSaved(); renderBetting(); }
+function loadDraftFromSaved() {
+  ui.draft = {};
+  const ev = state.events.find(e => e.id === ui.bettingEventId);
+  if (ev && ui.bettorId && ev.bets && ev.bets[ui.bettorId]) {
+    ev.bets[ui.bettorId].forEach(b => { ui.draft[b.fightId] = { side: b.side, stake: b.stake }; });
+  }
+}
+function draftTotal() { return Object.values(ui.draft).reduce((s, d) => s + (d.stake || 0), 0); }
+function bettingFight(fightId) {
+  const ev = state.events.find(e => e.id === ui.bettingEventId);
+  return ev ? ev.fights.find(f => f.id === fightId) : null;
+}
+function pickSide(fightId, side) {
+  if (!ui.bettorId) return toast('Select your name first', false);
+  const f = bettingFight(fightId);
+  if (f && fightLocked(f)) return toast('🔒 This fight is locked — betting closed 30 min before it starts', false);
+  const cur = ui.draft[fightId];
+  ui.draft[fightId] = { side, stake: cur ? cur.stake : 0 };
+  renderBetting();
+}
+function pickStake(fightId, stake) {
+  if (!ui.bettorId) return toast('Select your name first', false);
+  const f = bettingFight(fightId);
+  if (f && fightLocked(f)) return toast('🔒 This fight is locked — betting closed 30 min before it starts', false);
+  const cur = ui.draft[fightId];
+  if (!cur || !cur.side) return toast('Pick a fighter first, then the stake', false);
+  cur.stake = stake;
+  if (draftTotal() > START_BANKROLL) toast('⚠️ That puts you over 1000 points!', false);
+  renderBetting();
+}
+function skipFight(fightId) {
+  const f = bettingFight(fightId);
+  if (f && fightLocked(f)) return toast('🔒 This fight is locked — bets on it can no longer be changed', false);
+  delete ui.draft[fightId];
+  renderBetting();
+}
+function saveBets() {
+  const ev = state.events.find(e => e.id === ui.bettingEventId);
+  if (!ev || !ui.bettorId) return;
+  if (ev.status !== 'betting') return toast('Betting is closed for this event', false);
+  const prev = (ev.bets || {})[ui.bettorId] || [];
+  const frozen = prev.filter(b => { const f = ev.fights.find(f => f.id === b.fightId); return f && fightLocked(f); });
+  const open = Object.entries(ui.draft)
+    .filter(([fid, d]) => { const f = ev.fights.find(f => f.id === fid); return f && !fightLocked(f) && d.side && d.stake; })
+    .map(([fid, d]) => ({ fightId: fid, side: d.side, stake: d.stake }));
+  const bets = [...frozen, ...open];
+  for (const b of open) if (!STAKES.includes(b.stake)) return toast('Stakes must be 20, 60 or 100', false);
+  const total = bets.reduce((s, b) => s + b.stake, 0);
+  if (total > START_BANKROLL) return toast(`Total staked (${total}) exceeds ${START_BANKROLL} — trim it down`, false);
+  ev.bets = ev.bets || {};
+  ev.bets[ui.bettorId] = bets;
+  loadDraftFromSaved();
+  renderBetting();
+  saveBetsRemote(ev.id, ui.bettorId, bets);
+  toast(bets.length ? `💾 ${bets.length} bet${bets.length===1?'':'s'} locked in for ${playerName(ui.bettorId)} (${total} pts staked) — synced live` : 'Bets cleared — sitting this one out');
+}
+
+/* =====================================================================
+   RENDER: RESULTS
+   ===================================================================== */
+function renderResults() {
+  const el = document.getElementById('results-content');
+  if (!dbReady) { el.innerHTML = emptyBox('Connecting…', 'Loading your shared league.'); return; }
+  const eligible = state.events.filter(e => e.status === 'betting' || e.status === 'pending');
+  if (!eligible.length) {
+    el.innerHTML = emptyBox('Nothing to score.', 'All events are completed (or none exist). To fix a past result, use "Edit results" in 📜 History.');
+    return;
+  }
+  if (!eligible.some(e => e.id === ui.resultsEventId)) ui.resultsEventId = eligible[0].id;
+  const ev = eligible.find(e => e.id === ui.resultsEventId);
+
+  let html = `<div class="mb-4 max-w-md">
+    <label class="block text-[10px] uppercase tracking-wider text-gray-500 font-bold mb-1">Event</label>
+    <select onchange="ui.resultsEventId=this.value;renderResults()" class="w-full bg-brl-card border border-brl-line rounded px-3 py-2.5 text-sm font-bold focus:border-brl-lime focus:outline-none">
+      ${eligible.map(e => `<option value="${e.id}" ${e.id===ev.id?'selected':''}>${esc(e.name)} — ${e.status === 'betting' ? 'betting open' : 'results pending'}</option>`).join('')}
+    </select>
+  </div>`;
+
+  if (ev.status === 'betting') {
+    html += `<div class="octa-sm bg-yellow-950/40 border border-yellow-800 text-yellow-200 text-sm px-4 py-3 mb-4">
+      ⚠️ Betting is still <b>open</b> for this event. Picking winners will close betting automatically when you calculate.</div>`;
+  }
+  if (!ev.fights.length) { el.innerHTML = html + emptyBox('No fights on this card.', 'Add fights in 🥊 Events first.'); return; }
+
+  if (ev.espnId) {
+    html += `<div class="mb-4">
+      <button onclick="fetchWinnersFromESPN('${ev.id}')" class="octa-sm bg-brl-card2 border border-blue-800 text-blue-300 hover:bg-blue-950 font-bold px-4 py-2 text-xs uppercase">⚡ Auto-fill winners from ESPN</button>
+      <span class="text-xs text-gray-500 ml-2">Pulls official results once fights finish — you can still adjust manually.</span>
+    </div>`;
+  }
+
+  const allPicked = ev.fights.every(f => f.winner === 1 || f.winner === 2);
+  html += ev.fights.map((f, i) => `
+    <div class="octa-sm bg-brl-card border border-brl-line p-3 mb-2 flex flex-col sm:flex-row sm:items-center gap-2">
+      <span class="text-[10px] text-gray-500 font-bold uppercase w-14">Fight ${i+1}</span>
+      <div class="flex flex-1 gap-2">
+        <button onclick="setWinner('${ev.id}','${f.id}',1)"
+          class="flex-1 rounded border px-3 py-2 text-sm font-bold transition-colors ${f.winner===1 ? 'bg-green-800/70 border-green-500 text-white' : 'bg-brl-black border-brl-line text-gray-300 hover:border-green-600'}">
+          ${f.winner===1?'🏆 ':''}${esc(f.f1)} <span class="text-xs opacity-70">${fmtOdds(f.odds1)}</span></button>
+        <button onclick="setWinner('${ev.id}','${f.id}',2)"
+          class="flex-1 rounded border px-3 py-2 text-sm font-bold transition-colors ${f.winner===2 ? 'bg-green-800/70 border-green-500 text-white' : 'bg-brl-black border-brl-line text-gray-300 hover:border-green-600'}">
+          ${f.winner===2?'🏆 ':''}${esc(f.f2)} <span class="text-xs opacity-70">${fmtOdds(f.odds2)}</span></button>
+      </div>
+    </div>`).join('');
+
+  html += `<div class="mt-6 text-center">
+    <button onclick="calculateResults('${ev.id}')" ${allPicked ? '' : 'disabled'}
+      class="octa font-display uppercase text-2xl px-10 py-4 ${allPicked ? 'bg-brl-green hover:bg-brl-green2 text-white shadow-[0_0_30px_rgba(18,161,80,.5)]' : 'bg-gray-800 text-gray-500 cursor-not-allowed'}">
+      🧮 Calculate Results
+    </button>
+    ${allPicked ? '' : `<p class="text-xs text-gray-500 mt-2">Pick a winner for every fight to unlock (${ev.fights.filter(f=>f.winner).length}/${ev.fights.length} picked)</p>`}
+  </div>`;
+  el.innerHTML = html;
+}
+
+function setWinner(evId, fightId, side) {
+  const ev = state.events.find(e => e.id === evId); if (!ev) return;
+  const f = ev.fights.find(f => f.id === fightId); if (!f) return;
+  f.winner = side;
+  renderResults();
+  saveEventFields(ev, ['fights']);
+}
+
+/* =====================================================================
+   SCORING ENGINE
+   ===================================================================== */
+function computeEventResults(ev) {
+  const results = {};
+  state.players.forEach(p => {
+    const bets = (ev.bets && ev.bets[p.id]) || [];
+    let staked = 0, returned = 0;
+    const breakdown = [];
+    bets.forEach(b => {
+      const f = ev.fights.find(f => f.id === b.fightId);
+      if (!f) return;
+      staked += b.stake;
+      const won = f.winner === b.side;
+      const payout = won ? b.stake * americanToDecimal(b.side === 1 ? f.odds1 : f.odds2) : 0;
+      returned += payout;
+      breakdown.push({ fightId: b.fightId, side: b.side, stake: b.stake, won, payout });
+    });
+    results[p.id] = { staked, returned, bankroll: Math.round(START_BANKROLL - staked + returned), breakdown };
+  });
+  return results;
+}
+
+function calculateResults(evId) {
+  const ev = state.events.find(e => e.id === evId); if (!ev) return;
+  if (!ev.fights.every(f => f.winner === 1 || f.winner === 2)) return toast('Pick every winner first', false);
+  ev.results = computeEventResults(ev);
+  ev.status = 'completed';
+  renderAll();
+  saveEventFields(ev, ['results', 'status']);
+  toast('🏁 Results are in! Standings, wins and titles updated for everyone.');
+  showTab('history');
+}
+
+function reopenResults(evId) {
+  const ev = state.events.find(e => e.id === evId); if (!ev) return;
+  if (!confirm(`Reopen "${ev.name}"? Its points and win are removed from standings until you recalculate.`)) return;
+  ev.status = 'pending';
+  ev.results = {};
+  ui.resultsEventId = evId;
+  renderAll();
+  saveEventFields(ev, ['status', 'results']);
+  showTab('results');
+  toast('🔓 Event reopened — fix the results and recalculate');
+}
+
+/* =====================================================================
+   RENDER: HISTORY
+   ===================================================================== */
+function renderHistory() {
+  const el = document.getElementById('history-content');
+  if (!dbReady) { el.innerHTML = emptyBox('Connecting…', 'Loading your shared league.'); return; }
+  const done = state.events.filter(e => e.status === 'completed');
+  if (!done.length) { el.innerHTML = emptyBox('No completed events yet.', 'Finish an event in 🚨 Results and the breakdown lands here.'); return; }
+
+  el.innerHTML = done.map(ev => {
+    const winnerIds = nightWinnerIds(ev);
+    const rows = state.players
+      .map(p => ({ p, r: ev.results[p.id] || { staked: 0, returned: 0, bankroll: START_BANKROLL, breakdown: [] } }))
+      .sort((a, b) => b.r.bankroll - a.r.bankroll);
+    const best = rows[0];
+
+    return `<div class="octa bg-brl-card border border-brl-line p-4 sm:p-5 mb-6 win-flash">
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div>
+          <h3 class="font-display text-2xl text-white uppercase">${esc(ev.name)}</h3>
+          <div class="text-xs text-gray-500 mt-1">✅ Completed · Night's best: <b class="text-brl-lime2">${winnerIds.map(id=>esc(playerName(id))).join(' & ')} — ${fmtPts(best.r.bankroll)} pts</b> ${best.r.bankroll >= 1500 ? '💰🔥' : ''} <span class="text-gray-500">(+1 win 🏅)</span></div>
+        </div>
+        <button onclick="reopenResults('${ev.id}')" class="octa-sm bg-brl-card2 border border-brl-line text-gray-300 text-xs font-bold uppercase px-3 py-2 hover:border-brl-lime">✏️ Edit results</button>
+      </div>
+
+      <div class="flex flex-wrap gap-1.5 mb-4">
+        ${ev.fights.map(f => {
+          const w = f.winner === 1 ? f.f1 : f.f2;
+          const o = f.winner === 1 ? f.odds1 : f.odds2;
+          return `<span class="text-[11px] bg-brl-black border border-brl-line rounded px-2 py-1">🏆 ${esc(w)} <span class="${o>=200?'text-brl-lime2':'text-gray-500'}">${fmtOdds(o)}${o>=200?' 🔥':''}</span></span>`;
+        }).join('')}
+      </div>
+
+      <div class="grid gap-3 md:grid-cols-2">
+        ${rows.map(({p, r}, idx) => {
+          const diff = r.bankroll - START_BANKROLL;
+          const diffCls = diff > 0 ? 'text-green-400' : diff < 0 ? 'text-red-400' : 'text-gray-400';
+          const wonNight = winnerIds.includes(p.id);
+          const betLines = r.breakdown.map(b => {
+            const f = ev.fights.find(f => f.id === b.fightId);
+            if (!f) return '';
+            const name = b.side === 1 ? f.f1 : f.f2;
+            const odds = b.side === 1 ? f.odds1 : f.odds2;
+            const net = b.won ? b.payout - b.stake : -b.stake;
+            const bigWin = b.won && net >= 150;
+            return `<div class="flex justify-between items-center text-xs sm:text-sm py-1 border-b border-brl-line/40 last:border-0">
+              <span>${b.won ? '✅' : '❌'} ${esc(name)} <span class="text-gray-500">${fmtOdds(odds)} · ${b.stake} pts</span></span>
+              <span class="font-bold ${b.won ? (bigWin ? 'text-green-300 font-display text-lg' : 'text-green-400') : 'text-red-400'}">${b.won ? '+' + fmtPts(net) : '−' + fmtPts(b.stake)}${bigWin ? ' 💰' : ''}</span>
+            </div>`;
+          }).join('') || '<div class="text-xs text-gray-500 italic py-1">Sat this one out — kept the full 1000.</div>';
+          return `<div class="octa-sm bg-brl-card2/60 border ${wonNight ? 'border-brl-lime/60' : 'border-brl-line'} p-3">
+            <div class="flex justify-between items-baseline mb-1">
+              <b class="text-white">${wonNight ? '👑 ' : ''}${esc(p.name)}</b>
+              <span class="font-display text-2xl ${wonNight ? 'text-brl-lime2' : 'text-white'}">${fmtPts(r.bankroll)}</span>
+            </div>
+            <div class="text-[11px] text-gray-500 mb-2">staked ${r.staked} · returned ${fmtPts(r.returned)} · <span class="${diffCls} font-bold">${diff >= 0 ? '+' : ''}${fmtPts(diff)} on the night</span>${wonNight ? ' · <span class="text-brl-lime2 font-bold">🏅 +1 win</span>' : ''}</div>
+            ${betLines}
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* =====================================================================
+   RENDER: LEAGUE (player list)
+   ===================================================================== */
+function renderLeague() {
+  const el = document.getElementById('players-list');
+  if (!dbReady) { el.innerHTML = '<p class="text-sm text-gray-500 italic">Connecting…</p>'; return; }
+  if (!state.players.length) {
+    el.innerHTML = '<p class="text-sm text-gray-500 italic">No players yet. Add your crew above. 👆</p>';
+    return;
+  }
+  el.innerHTML = state.players.map(p => `
+    <div class="flex items-center justify-between bg-brl-black border border-brl-line rounded px-3 py-2">
+      <span class="font-bold text-sm">🥊 ${esc(p.name)} <span class="text-gray-500 font-normal text-xs">· ${winsCount(p.id)} win${winsCount(p.id)===1?'':'s'} · ${fmtPts(seasonTotal(p.id))} season pts</span></span>
+      <button onclick="removePlayer('${p.id}')" class="text-red-500/70 hover:text-red-400 text-xs font-bold uppercase">Remove</button>
+    </div>`).join('');
+}
+
+/* ---------------- master render + init ---------------- */
+// Each render call is isolated: if one throws (a bad event shape, a bug we
+// haven't found yet, whatever), the others still run. Previously an
+// exception in renderEvents() silently prevented renderLeague() (the players
+// list) from ever running again — this is what caused "players not loading."
+function renderAll() {
+  const renders = [renderStandings, renderEvents, renderBetting, renderResults, renderHistory, renderLeague];
+  renders.forEach(fn => {
+    try { fn(); }
+    catch (e) { console.error(`${fn.name} failed:`, e); }
+  });
+}
+
+// Boot: if Firebase isn't configured yet, show the setup screen and stop.
+// Otherwise connect, then sync ESPN + start the lock ticker once data loads.
+(function init() {
+  if (!firebaseConfigured()) {
+    document.getElementById('setup-screen').classList.remove('hidden');
+    return;
+  }
+  connectFirebase();
+
+  let firstLoadSynced = false;
+  const trySyncOnce = () => {
+    if (firstLoadSynced || !dbReady) return;
+    firstLoadSynced = true;
+    if (Date.now() - (state.lastSync || 0) > SYNC_STALE_MS) syncWithESPN(false);
+  };
+  const readyPoll = setInterval(() => { if (dbReady) { trySyncOnce(); clearInterval(readyPoll); } }, 300);
+
+  setInterval(() => syncWithESPN(false), 4 * 60 * 60 * 1000);
+  setInterval(() => {
+    const changed = applyAutoLocks();
+    const active = document.querySelector('.tab-btn.active');
+    const tab = active ? active.dataset.tab : '';
+    if (changed) renderAll();
+    else if (tab === 'betting') renderBetting();
+  }, 30000);
+})();
+</script>
+</body>
+</html>
