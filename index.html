@@ -62,6 +62,14 @@
   .title-emperor   { background:linear-gradient(90deg,#12a150,#a3e635); color:#070a08; box-shadow:0 0 14px rgba(163,230,53,.55); }
   .title-goat      { background:linear-gradient(90deg,#22e06b,#d3f867,#22e06b); background-size:200% auto; color:#070a08; animation:shimmer 2.5s linear infinite; box-shadow:0 0 22px rgba(211,248,103,.85); }
   @keyframes shimmer { 0%{background-position:0% center;} 100%{background-position:200% center;} }
+  /* ---------------- Fight Night live leaderboard ---------------- */
+  .live-dot { display:inline-block; width:9px; height:9px; border-radius:50%; background:#ff2e2e; animation: livePulse 1.6s ease-in-out infinite; box-shadow:0 0 8px rgba(255,46,46,.9); }
+  @keyframes livePulse { 0%,100%{opacity:1; transform:scale(1);} 50%{opacity:.4; transform:scale(.75);} }
+  .fn-rank-1 { border-color:#a3e635 !important; box-shadow:0 0 26px rgba(163,230,53,.25); }
+  .fn-number-flash { animation: fnFlash 900ms ease-out; }
+  @keyframes fnFlash { 0%{ color:#d3f867; text-shadow:0 0 18px rgba(211,248,103,.9); transform:scale(1.12); } 100%{ color:inherit; text-shadow:none; transform:scale(1); } }
+  .fn-progress-track { height:6px; border-radius:3px; background:#182018; overflow:hidden; }
+  .fn-progress-fill { height:100%; background:linear-gradient(90deg,#12a150,#a3e635); transition:width .5s ease; }
   /* ---------------- Firebase setup overlay ---------------- */
   #setup-screen code { background:#182018; border:1px solid #263226; padding:1px 6px; border-radius:3px; color:#d3f867; }
 </style>
@@ -113,11 +121,12 @@
 <!-- ======================= TAB NAV ======================= -->
 <nav class="sticky top-0 z-40 bg-brl-black/95 backdrop-blur border-b border-brl-line">
   <div class="max-w-6xl mx-auto px-2 flex overflow-x-auto whitespace-nowrap">
-    <button onclick="showTab('standings')" data-tab="standings" class="tab-btn active px-4 py-3 text-sm font-bold uppercase tracking-wide text-gray-400 border-b-2 border-transparent hover:text-white">🏆 Standings</button>
+    <button onclick="showTab('fightnight')" data-tab="fightnight" class="tab-btn active px-4 py-3 text-sm font-bold uppercase tracking-wide text-gray-400 border-b-2 border-transparent hover:text-white">🔴 Fight Night</button>
     <button onclick="showTab('betting')" data-tab="betting" class="tab-btn px-4 py-3 text-sm font-bold uppercase tracking-wide text-gray-400 border-b-2 border-transparent hover:text-white">💰 Place Bets</button>
     <button onclick="showTab('events')" data-tab="events" class="tab-btn px-4 py-3 text-sm font-bold uppercase tracking-wide text-gray-400 border-b-2 border-transparent hover:text-white">🥊 Events</button>
     <button onclick="showTab('results')" data-tab="results" class="tab-btn px-4 py-3 text-sm font-bold uppercase tracking-wide text-gray-400 border-b-2 border-transparent hover:text-white">🚨 Results</button>
     <button onclick="showTab('history')" data-tab="history" class="tab-btn px-4 py-3 text-sm font-bold uppercase tracking-wide text-gray-400 border-b-2 border-transparent hover:text-white">📜 History</button>
+    <button onclick="showTab('standings')" data-tab="standings" class="tab-btn px-4 py-3 text-sm font-bold uppercase tracking-wide text-gray-400 border-b-2 border-transparent hover:text-white">🏆 Season</button>
     <button onclick="showTab('howto')" data-tab="howto" class="tab-btn px-4 py-3 text-sm font-bold uppercase tracking-wide text-gray-400 border-b-2 border-transparent hover:text-white">❓ How to Play</button>
     <button onclick="showTab('league')" data-tab="league" class="tab-btn px-4 py-3 text-sm font-bold uppercase tracking-wide text-gray-400 border-b-2 border-transparent hover:text-white">⚙️ League</button>
   </div>
@@ -125,10 +134,15 @@
 
 <main class="max-w-6xl mx-auto px-4 py-6">
 
-  <!-- ======================= STANDINGS TAB ======================= -->
-  <section id="tab-standings" class="tab-panel">
+  <!-- ======================= FIGHT NIGHT (LIVE) TAB ======================= -->
+  <section id="tab-fightnight" class="tab-panel">
+    <div id="fightnight-content"></div>
+  </section>
+
+  <!-- ======================= STANDINGS TAB (SEASON / ALL-TIME) ======================= -->
+  <section id="tab-standings" class="tab-panel hidden">
     <h2 class="font-display text-3xl uppercase text-white mb-1">🏆 Season Standings</h2>
-    <p class="text-sm text-gray-500 mb-5">Points + fight-night wins. Best score of the night earns 1 win — stack wins to climb the title ladder.</p>
+    <p class="text-sm text-gray-500 mb-5">Points + fight-night wins, across every completed event. Best score of the night earns 1 win — stack wins to climb the title ladder.</p>
     <div id="standings-content"></div>
   </section>
 
@@ -180,7 +194,17 @@
           <li>⏰ <b class="text-white">Betting locks 30 minutes before each fight starts.</b> Once a fight locks, your saved bet on it stands — no changes.</li>
           <li>Your <b class="text-white">final bankroll</b> for the night gets added to your season total.</li>
         </ul>
-        <p class="text-xs text-gray-500 mt-3">📡 Upcoming UFC events, fight cards, start times and odds sync automatically from ESPN. Hit "Sync now" in 🥊 Events to refresh manually.</p>
+        <p class="text-xs text-gray-500 mt-3">📡 Fight cards and start times sync automatically from ESPN. Odds sync from a live sportsbook feed (see the "Odds Source Setup" card below). Hit "Sync now" in 🥊 Events to refresh manually.</p>
+      </div>
+      <div class="octa bg-brl-card border border-brl-line p-5">
+        <h3 class="font-display text-xl text-brl-lime2 uppercase mb-2">🔌 Odds Source Setup</h3>
+        <p class="text-sm text-gray-300 mb-2">Odds come from <b class="text-white">The Odds API</b> — real lines from DraftKings, FanDuel, and others, aggregated into one feed. Free, no card required:</p>
+        <ol class="space-y-1.5 text-sm text-gray-300 list-decimal list-inside">
+          <li>Go to <b class="text-white">the-odds-api.com</b> → sign up for a free API key.</li>
+          <li>Open this HTML file in a text editor, find <code class="bg-brl-black border border-brl-line px-1 rounded">ODDS_API_KEY</code> near the top of the script, and paste your key in.</li>
+          <li>Save and re-upload the file — odds will start filling in on the next sync.</li>
+        </ol>
+        <p class="text-xs text-gray-500 mt-2">Free tier covers 500 lookups/month, plenty for a weekly league. Without a key, fights just show −110/−110 until you edit odds manually in 🥊 Events.</p>
       </div>
       <div class="octa bg-brl-card border border-brl-line p-5">
         <h3 class="font-display text-xl text-brl-lime2 uppercase mb-2">📐 How Payouts Work</h3>
@@ -286,13 +310,14 @@
    ===================================================================== */
 
 // ---- PASTE YOUR FIREBASE CONFIG HERE (see the setup screen for how) ----
-const firebaseConfig = {
-  apiKey: "AIzaSyBqA8Bb98IeCww8DxRpGshh9k9toTdcH0w",
-  authDomain: "friends-betting-league.firebaseapp.com",
-  projectId: "friends-betting-league",
-  storageBucket: "friends-betting-league.firebasestorage.app",
-  messagingSenderId: "1065653057572",
-  appId: "1:1065653057572:web:063bb07b15f517593dc0b1"
+const FIREBASE_CONFIG = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
+  projectId: "YOUR_PROJECT",
+  storageBucket: "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
 };
 // -------------------------------------------------------------------------
 
@@ -305,7 +330,7 @@ let db = null;          // firebase.database() once connected
 let dbReady = false;    // true once the first snapshot of players+events has loaded
 
 // Betting tab UI state (not persisted): who is betting + their draft picks
-let ui = { bettorId: '', bettingEventId: '', draft: {}, resultsEventId: '' };
+let ui = { bettorId: '', bettingEventId: '', draft: {}, resultsEventId: '', fightNightEventId: '' };
 
 /* ---------------- helpers ---------------- */
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -350,11 +375,23 @@ function firebaseConfigured() {
 // missing entirely (`undefined`), not empty. Every place in this app assumes
 // those fields are always present, so we normalize them back to [] / {} right
 // here, once, on every read — the single choke point all Firebase data flows
-// through before touching app state.
+// through before touching app state. This also applies one level deeper: a
+// player with zero bets on an event gets `results[playerId].breakdown: []`,
+// which Firebase prunes the same way — caught this exact case via testing
+// while building the live leaderboard, so it's fixed here too.
 function normalizeEvent(ev) {
   ev.fights = ev.fights || [];
   ev.bets = ev.bets || {};
   ev.results = ev.results || {};
+  Object.keys(ev.results).forEach(pid => {
+    const r = ev.results[pid] || {};
+    ev.results[pid] = {
+      staked: r.staked || 0,
+      returned: r.returned || 0,
+      bankroll: r.bankroll === undefined ? START_BANKROLL : r.bankroll,
+      breakdown: r.breakdown || [],
+    };
+  });
   return ev;
 }
 function eventsMapToArray(map) {
@@ -597,7 +634,7 @@ function importLeague(evt) {
       if (!confirm('Import will REPLACE the entire shared league for everyone. Continue?')) return;
       state.players = data.players;
       state.events = data.events;
-      ui = { bettorId: '', bettingEventId: '', draft: {}, resultsEventId: '' };
+      ui = { bettorId: '', bettingEventId: '', draft: {}, resultsEventId: '', fightNightEventId: '' };
       renderAll();
       // Push to Firebase: wipe events, then write players + each event fresh
       if (db) {
@@ -619,7 +656,7 @@ function resetEverything() {
   if (!confirm('💣 Reset EVERYTHING for the whole league (all players, events, bets, history)? This affects everyone.')) return;
   if (!confirm('Last chance — this cannot be undone. Really wipe the shared league?')) return;
   state = { players: [], events: [], lastSync: 0 };
-  ui = { bettorId: '', bettingEventId: '', draft: {}, resultsEventId: '' };
+  ui = { bettorId: '', bettingEventId: '', draft: {}, resultsEventId: '', fightNightEventId: '' };
   renderAll();
   if (db) {
     db.ref('events').set(null);
@@ -703,7 +740,6 @@ function setEventStatus(evId, status) {
    ESPN AUTO-SYNC — upcoming UFC events, fight cards, odds, 30-min lock
    ===================================================================== */
 const ESPN_SCOREBOARD_URL = 'https://site.api.espn.com/apis/site/v2/sports/mma/ufc/scoreboard';
-const ESPN_CORE_URL = 'https://sports.core.api.espn.com/v2/sports/mma/leagues/ufc';
 const LOCK_MS = 30 * 60 * 1000;
 const SYNC_STALE_MS = 12 * 60 * 60 * 1000;
 const SYNC_LOOKAHEAD_DAYS = 14;
@@ -777,35 +813,81 @@ function mergeEspnEvent(apiEv) {
   return { ev, kind: 'updated' };
 }
 
-function extractMoneyline(so) {
-  if (!so) return null;
-  let ml = so.moneyLine;
-  if (ml === undefined && so.current && so.current.moneyLine) ml = so.current.moneyLine.american ?? so.current.moneyLine.value;
-  if (typeof ml === 'string') ml = parseInt(ml.replace('+', ''), 10);
-  return (typeof ml === 'number' && isFinite(ml) && (ml >= 100 || ml <= -100)) ? Math.round(ml) : null;
+/* ---------------------------------------------------------------------
+   ODDS SOURCE: The Odds API (the-odds-api.com)
+   ESPN's own odds feed is frequently empty — their partner (DraftKings,
+   via ESPN) often just hasn't posted a line yet, especially for prelims
+   or close to fight time. The Odds API aggregates real lines from
+   DraftKings, FanDuel, BetMGM and others into one clean feed, and has a
+   free tier that covers MMA. ESPN still supplies the fight card itself
+   (names, order, start times) — this only replaces the odds numbers.
+   Sign up free at https://the-odds-api.com and paste your key below.
+   --------------------------------------------------------------------- */
+const ODDS_API_KEY = '5c4d0bd349cdaa99b0aecee5e8d09c0d';
+const ODDS_API_URL = 'https://api.the-odds-api.com/v4/sports/mma_mixed_martial_arts/odds';
+
+function oddsApiConfigured() {
+  return ODDS_API_KEY && ODDS_API_KEY !== 'YOUR_ODDS_API_KEY';
 }
 
-async function fetchOddsForEvent(ev) {
-  const targets = ev.fights.filter(f => f.espnCompId && f.oddsPending);
+// Normalize a fighter name for matching across two independent data
+// sources (ESPN vs. The Odds API), which format names slightly differently.
+// Strips accents, punctuation, and casing; keeps only letters/spaces.
+function normalizeFighterName(name) {
+  return String(name || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().replace(/[^a-z\s]/g, '').replace(/\s+/g, ' ').trim();
+}
+
+// One bulk fetch covers every upcoming MMA fight (all promotions, not just
+// UFC) in a single request — cheap on the free tier's monthly quota, unlike
+// ESPN's old design of one request per fight. Cached per sync cycle.
+async function fetchOddsApiBoard() {
+  if (!oddsApiConfigured()) return [];
+  const url = `${ODDS_API_URL}?regions=us&markets=h2h&oddsFormat=american&apiKey=${ODDS_API_KEY}`;
+  const resp = await fetch(url);
+  if (resp.status === 401) throw new Error('Odds API key rejected (check ODDS_API_KEY)');
+  if (resp.status === 429) throw new Error('Odds API monthly quota reached');
+  if (!resp.ok) throw new Error('Odds API HTTP ' + resp.status);
+  const data = await resp.json();
+  return (Array.isArray(data) ? data : []).map(fight => {
+    const book = (fight.bookmakers || []).find(b => b.key === 'draftkings') || (fight.bookmakers || [])[0];
+    const market = book && (book.markets || []).find(m => m.key === 'h2h');
+    const outcomes = (market && market.outcomes) || [];
+    const priceFor = name => { const o = outcomes.find(o => normalizeFighterName(o.name) === normalizeFighterName(name)); return o ? Math.round(o.price) : null; };
+    return {
+      commenceTime: fight.commence_time,
+      home: fight.home_team, away: fight.away_team,
+      homeNorm: normalizeFighterName(fight.home_team), awayNorm: normalizeFighterName(fight.away_team),
+      homePrice: priceFor(fight.home_team), awayPrice: priceFor(fight.away_team),
+      bookTitle: book ? book.title : null,
+    };
+  }).filter(f => f.homePrice !== null && f.awayPrice !== null);
+}
+
+// Match one of our fights (by fighter names) against the odds board. Falls
+// back to last-name-only matching since promotional nicknames/middle names
+// sometimes differ between ESPN and sportsbook feeds.
+function matchOddsForFight(f, board) {
+  const n1 = normalizeFighterName(f.f1), n2 = normalizeFighterName(f.f2);
+  const last = n => n.split(' ').pop();
+  let hit = board.find(b => (b.homeNorm === n1 && b.awayNorm === n2) || (b.homeNorm === n2 && b.awayNorm === n1));
+  if (!hit) {
+    hit = board.find(b => (last(b.homeNorm) === last(n1) && last(b.awayNorm) === last(n2)) ||
+                           (last(b.homeNorm) === last(n2) && last(b.awayNorm) === last(n1)));
+  }
+  if (!hit) return null;
+  const f1IsHome = hit.homeNorm === n1 || last(hit.homeNorm) === last(n1);
+  return { odds1: f1IsHome ? hit.homePrice : hit.awayPrice, odds2: f1IsHome ? hit.awayPrice : hit.homePrice, bookTitle: hit.bookTitle };
+}
+
+async function fetchOddsForEvent(ev, board) {
+  const targets = ev.fights.filter(f => f.oddsPending);
   let touched = false;
-  await Promise.allSettled(targets.map(async f => {
-    const resp = await fetch(`${ESPN_CORE_URL}/events/${ev.espnId}/competitions/${f.espnCompId}/odds`);
-    if (!resp.ok) return;
-    const data = await resp.json();
-    const item = (data.items || [])[0];
-    if (!item) return;
-    let o1 = null, o2 = null;
-    for (const so of [item.homeAthleteOdds || item.homeTeamOdds, item.awayAthleteOdds || item.awayTeamOdds]) {
-      const ml = extractMoneyline(so);
-      if (ml === null) continue;
-      const aid = ((so.athlete && so.athlete.$ref || '').match(/athletes\/(\d+)/) || [])[1];
-      if (aid && aid === f.a1) o1 = ml;
-      else if (aid && aid === f.a2) o2 = ml;
-      else if (o1 === null) o1 = ml;
-      else o2 = ml;
-    }
-    if (o1 !== null && o2 !== null) { f.odds1 = o1; f.odds2 = o2; f.oddsPending = false; touched = true; }
-  }));
+  targets.forEach(f => {
+    const m = matchOddsForFight(f, board);
+    if (m) { f.odds1 = m.odds1; f.odds2 = m.odds2; f.oddsPending = false; f.oddsSource = m.bookTitle || 'odds board'; touched = true; }
+  });
   return touched;
 }
 
@@ -816,7 +898,7 @@ async function syncWithESPN(manual) {
     return;
   }
   syncWithESPN._busy = true;
-  if (manual) toast('📡 Syncing with ESPN…');
+  if (manual) toast('📡 Syncing fight card + odds…');
   try {
     const resp = await fetch(`${ESPN_SCOREBOARD_URL}?dates=${espnDateRange()}`);
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
@@ -828,19 +910,33 @@ async function syncWithESPN(manual) {
       if (kind === 'created') { created++; saveNewEvent(ev); }
       else if (kind === 'updated') { touchedEvents.push(ev); }
     }
-    for (const ev of state.events.filter(e => e.espnId && e.status !== 'completed')) {
-      const gotOdds = await fetchOddsForEvent(ev);
-      if (gotOdds && !touchedEvents.includes(ev)) touchedEvents.push(ev);
+
+    let oddsWarning = null;
+    if (oddsApiConfigured()) {
+      try {
+        const board = await fetchOddsApiBoard();
+        for (const ev of state.events.filter(e => e.espnId && e.status !== 'completed')) {
+          const gotOdds = await fetchOddsForEvent(ev, board);
+          if (gotOdds && !touchedEvents.includes(ev)) touchedEvents.push(ev);
+        }
+      } catch (e) {
+        console.warn('Odds API fetch failed', e);
+        oddsWarning = e.message;
+      }
     }
+
     touchedEvents.forEach(ev => saveEventFields(ev, ['name', 'date', 'fights']));
     state.lastSync = Date.now();
     saveLastSync(state.lastSync);
     applyAutoLocks();
     renderAll();
-    if (manual) toast(`📡 Synced with ESPN — ${created ? created + ' new event(s) added' : 'schedule up to date'}`);
+    if (manual) {
+      if (oddsWarning) toast(`📡 Fight card synced, but odds failed: ${oddsWarning}`, false);
+      else toast(`📡 Synced — ${created ? created + ' new event(s) added' : 'schedule up to date'}${oddsApiConfigured() ? '' : ' (add an Odds API key to auto-fill odds)'}`);
+    }
   } catch (e) {
     console.warn('ESPN sync failed', e);
-    if (manual) toast('ESPN sync failed — check your connection and try again', false);
+    if (manual) toast('Sync failed — check your connection and try again', false);
   } finally {
     syncWithESPN._busy = false;
   }
@@ -882,6 +978,119 @@ function applyAutoLocks() {
     }
   });
   return anyChanged;
+}
+
+/* =====================================================================
+   RENDER: FIGHT NIGHT (live, front-page leaderboard)
+   Picks the most relevant non-completed event automatically — an
+   in-progress one if there is one, otherwise the next upcoming card, and
+   falls back to the most recent completed event so there's always
+   something to show. Updates instantly any time results are recalculated
+   (which now happens automatically every time a winner is tapped).
+   ===================================================================== */
+let fnPrevBankrolls = {}; // tracks last-rendered numbers so we know what just changed (for the flash animation)
+
+function pickFightNightEvent() {
+  const notDone = state.events.filter(e => (e.status === 'betting' || e.status === 'pending') && e.fights.length);
+  const inProgress = notDone.filter(eventInProgress);
+  if (inProgress.length) return inProgress.sort((a, b) => (b.createdAt||0) - (a.createdAt||0))[0];
+  if (notDone.length) return notDone.sort((a, b) => (b.createdAt||0) - (a.createdAt||0))[0];
+  const completed = state.events.filter(e => e.status === 'completed');
+  if (completed.length) return completed.sort((a, b) => (b.createdAt||0) - (a.createdAt||0))[0];
+  return null;
+}
+
+function renderFightNight() {
+  const el = document.getElementById('fightnight-content');
+  if (!dbReady) { el.innerHTML = emptyBox('Connecting…', 'Loading your shared league.'); return; }
+  if (!state.players.length) { el.innerHTML = emptyBox('No players yet.', 'Head to ⚙️ League to add players.'); return; }
+
+  const candidates = state.events.filter(e => e.fights && e.fights.length &&
+    (eventInProgress(e) || e.status === 'betting' || e.status === 'pending' || e.status === 'completed'));
+  if (!candidates.length) {
+    el.innerHTML = `<h2 class="font-display text-3xl uppercase text-white mb-1">🔴 Fight Night</h2>
+      <p class="text-sm text-gray-500 mb-5">Your live leaderboard shows up here the moment there's a card to bet on.</p>` +
+      emptyBox('No fight night yet.', 'Sync or create an event in 🥊 Events to get started.');
+    return;
+  }
+  if (!ui.fightNightEventId || !candidates.some(e => e.id === ui.fightNightEventId)) {
+    ui.fightNightEventId = pickFightNightEvent().id;
+  }
+  const ev = candidates.find(e => e.id === ui.fightNightEventId) || pickFightNightEvent();
+
+  const decided = fightsDecidedCount(ev), total = ev.fights.length;
+  const live = eventInProgress(ev);
+  const notStarted = decided === 0 && ev.status !== 'completed';
+  const final = ev.status === 'completed';
+
+  const rows = state.players.map(p => {
+    const r = (ev.results && ev.results[p.id]) || { bankroll: START_BANKROLL, staked: 0, breakdown: [] };
+    return { p, bankroll: r.bankroll, diff: r.bankroll - START_BANKROLL };
+  }).sort((a, b) => b.bankroll - a.bankroll);
+
+  let html = `<div class="flex flex-wrap items-center justify-between gap-2 mb-1">
+    <h2 class="font-display text-3xl uppercase text-white flex items-center gap-2">
+      ${live ? '<span class="live-dot"></span>' : ''} 🔴 Fight Night
+    </h2>
+    ${candidates.length > 1 ? `<select onchange="ui.fightNightEventId=this.value;renderFightNight()" class="bg-brl-card border border-brl-line rounded px-3 py-2 text-xs font-bold focus:border-brl-lime focus:outline-none">
+      ${candidates.map(e => `<option value="${e.id}" ${e.id===ev.id?'selected':''}>${esc(e.name)}</option>`).join('')}
+    </select>` : ''}
+  </div>
+  <div class="flex items-center gap-2 mb-5 flex-wrap">
+    <span class="font-bold text-white">${esc(ev.name)}</span>
+    ${live ? '<span class="text-[10px] font-bold uppercase tracking-wider bg-red-950/60 text-red-300 border border-red-700 px-2 py-1 rounded">🔴 Live</span>' : ''}
+    ${notStarted ? '<span class="text-[10px] font-bold uppercase tracking-wider bg-brl-card2 text-gray-400 border border-brl-line px-2 py-1 rounded">⏳ Not started</span>' : ''}
+    ${final ? '<span class="text-[10px] font-bold uppercase tracking-wider bg-brl-lime/20 text-brl-lime2 border border-brl-lime/50 px-2 py-1 rounded">✅ Final</span>' : ''}
+  </div>
+
+  <div class="octa-sm bg-brl-card2 border border-brl-line px-4 py-3 mb-6">
+    <div class="flex items-center justify-between text-xs font-bold uppercase tracking-wide mb-1.5">
+      <span class="text-gray-400">${decided}/${total} fights decided</span>
+      <span class="text-gray-500">${notStarted ? 'Check in once fights start finishing' : final ? 'Card complete' : 'Updates as you mark winners in 🚨 Results'}</span>
+    </div>
+    <div class="fn-progress-track"><div class="fn-progress-fill" style="width:${total?Math.round(decided/total*100):0}%"></div></div>
+  </div>
+
+  <div class="space-y-2.5 mb-6">
+    ${rows.map((r, i) => {
+      const changed = fnPrevBankrolls[r.p.id] !== undefined && fnPrevBankrolls[r.p.id] !== r.bankroll;
+      const cls = r.diff > 0 ? 'text-green-400' : r.diff < 0 ? 'text-red-400' : 'text-gray-400';
+      const medal = ['🥇','🥈','🥉'][i] || `<span class="text-gray-600 text-sm">#${i+1}</span>`;
+      return `<div class="octa bg-brl-card border ${i===0 && r.bankroll>START_BANKROLL ? 'fn-rank-1' : 'border-brl-line'} px-4 py-3.5 flex items-center justify-between gap-3">
+        <div class="flex items-center gap-3 min-w-0">
+          <span class="text-xl w-8 text-center shrink-0">${medal}</span>
+          <span class="font-bold text-white text-lg truncate">${esc(r.p.name)}</span>
+        </div>
+        <div class="text-right shrink-0">
+          <div class="font-display text-3xl ${i===0 && r.bankroll>START_BANKROLL ? 'text-brl-lime2' : 'text-white'} ${changed ? 'fn-number-flash' : ''}">${fmtPts(r.bankroll)}</div>
+          <div class="text-xs font-bold ${cls}">${r.diff >= 0 ? '+' : ''}${fmtPts(r.diff)} tonight</div>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
+
+  // Recent fight results strip, most recent first, for context while checking in
+  const decidedFights = ev.fights.map((f, i) => ({ f, i })).filter(x => x.f.winner);
+  if (decidedFights.length) {
+    html += `<div class="mb-2">
+      <h3 class="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Results so far</h3>
+      <div class="flex flex-wrap gap-1.5">
+        ${decidedFights.slice().reverse().map(({f, i}) => {
+          const w = f.winner === 1 ? f.f1 : f.f2;
+          const o = f.winner === 1 ? f.odds1 : f.odds2;
+          return `<span class="text-[11px] bg-brl-card border border-brl-line rounded px-2 py-1">Fight ${i+1}: 🏆 ${esc(w)} <span class="${o>=200?'text-brl-lime2':'text-gray-500'}">${fmtOdds(o)}${o>=200?' 🔥':''}</span></span>`;
+        }).join('')}
+      </div>
+    </div>`;
+  } else if (notStarted) {
+    html += `<p class="text-sm text-gray-500 text-center py-4">Everyone starts even at ${fmtPts(START_BANKROLL)}. Head to 🚨 Results and mark the first winner once a fight ends — this screen updates instantly for everyone.</p>`;
+  }
+  if (final) {
+    html += `<div class="text-center mt-4"><button onclick="showTab('history')" class="octa-sm bg-brl-card2 border border-brl-line text-gray-300 hover:border-brl-lime font-bold px-4 py-2 text-xs uppercase">📜 View full breakdown in History</button></div>`;
+  }
+
+  el.innerHTML = html;
+  rows.forEach(r => { fnPrevBankrolls[r.p.id] = r.bankroll; });
 }
 
 /* =====================================================================
@@ -969,8 +1178,9 @@ function renderEvents() {
   if (!dbReady) { el.innerHTML = emptyBox('Connecting…', 'Loading your shared league.'); return; }
   const syncBar = `<div class="octa-sm bg-brl-card2 border border-brl-line px-4 py-3 mb-5 flex flex-wrap items-center justify-between gap-3">
     <div class="text-xs text-gray-400">
-      📡 <b class="text-white">ESPN auto-update:</b> upcoming UFC events (next ${SYNC_LOOKAHEAD_DAYS} days) sync automatically each time you open the app.
+      📡 <b class="text-white">Auto-update:</b> fight cards sync from ESPN, odds sync from a live sportsbook feed — both refresh automatically.
       <span class="text-gray-500">Last synced: ${fmtSyncTime(state.lastSync)}</span>
+      ${oddsApiConfigured() ? '' : '<span class="text-yellow-500 block mt-1">⚠️ No odds source configured — fights will show −110/−110 placeholders until you add a free Odds API key (see ❓ How to Play).</span>'}
     </div>
     <button onclick="syncWithESPN(true)" class="octa-sm bg-brl-card border border-brl-lime text-brl-lime2 hover:bg-brl-lime hover:text-black font-bold px-4 py-2 text-xs uppercase">🔄 Sync now</button>
   </div>`;
@@ -1122,7 +1332,9 @@ function renderBetFightCard(ev, f, i) {
     ? `<span class="${locked ? 'text-red-400' : 'text-gray-400'} normal-case font-normal">· ${esc(fmtFightTime(f.startTime))} ${cd ? '· ' + cd : ''}</span>`
     : '';
   const oddsPendingNote = f.oddsPending && !locked
-    ? `<div class="mt-2 text-xs text-yellow-500/90">⏳ Real odds not posted yet — showing −110/−110 placeholders. They'll update automatically when ESPN publishes the lines.</div>`
+    ? (oddsApiConfigured()
+        ? `<div class="mt-2 text-xs text-yellow-500/90">⏳ No line posted yet for this fight — showing −110/−110 placeholders. They'll fill in automatically once a sportsbook prices it.</div>`
+        : `<div class="mt-2 text-xs text-yellow-500/90">⏳ Showing −110/−110 placeholders — add a free Odds API key (❓ How to Play) to auto-fill real odds, or edit them manually in 🥊 Events.</div>`)
     : '';
   const lockedNote = locked
     ? `<div class="mt-2 text-xs text-red-400 font-bold">🔒 Betting locked (closed 30 min before the fight).${pick && pick.stake ? ' Your saved bet on this fight stands.' : ''}</div>`
@@ -1255,7 +1467,7 @@ function renderResults() {
 
   if (ev.status === 'betting') {
     html += `<div class="octa-sm bg-yellow-950/40 border border-yellow-800 text-yellow-200 text-sm px-4 py-3 mb-4">
-      ⚠️ Betting is still <b>open</b> for this event. Picking winners will close betting automatically when you calculate.</div>`;
+      ⚠️ Betting is still <b>open</b> for this event. You can still mark winners as fights finish — betting for each fight closes on its own 30 minutes before it starts.</div>`;
   }
   if (!ev.fights.length) { el.innerHTML = html + emptyBox('No fights on this card.', 'Add fights in 🥊 Events first.'); return; }
 
@@ -1266,7 +1478,16 @@ function renderResults() {
     </div>`;
   }
 
-  const allPicked = ev.fights.every(f => f.winner === 1 || f.winner === 2);
+  const decided = fightsDecidedCount(ev), total = ev.fights.length, allPicked = decided === total;
+  html += `<div class="octa-sm bg-brl-card2 border border-brl-line px-4 py-3 mb-4">
+    <div class="flex items-center justify-between text-xs font-bold uppercase tracking-wide mb-1.5">
+      <span class="text-gray-400">${decided}/${total} fights decided</span>
+      <span class="${allPicked ? 'text-brl-lime2' : 'text-gray-400'}">${allPicked ? '✅ Card complete' : '🔴 Live'}</span>
+    </div>
+    <div class="fn-progress-track"><div class="fn-progress-fill" style="width:${total?Math.round(decided/total*100):0}%"></div></div>
+  </div>
+  <p class="text-xs text-gray-500 mb-4">💡 Tap a winner the moment their fight ends — the Fight Night leaderboard updates for everyone instantly. No extra step needed.</p>`;
+
   html += ev.fights.map((f, i) => `
     <div class="octa-sm bg-brl-card border border-brl-line p-3 mb-2 flex flex-col sm:flex-row sm:items-center gap-2">
       <span class="text-[10px] text-gray-500 font-bold uppercase w-14">Fight ${i+1}</span>
@@ -1281,11 +1502,11 @@ function renderResults() {
     </div>`).join('');
 
   html += `<div class="mt-6 text-center">
-    <button onclick="calculateResults('${ev.id}')" ${allPicked ? '' : 'disabled'}
-      class="octa font-display uppercase text-2xl px-10 py-4 ${allPicked ? 'bg-brl-green hover:bg-brl-green2 text-white shadow-[0_0_30px_rgba(18,161,80,.5)]' : 'bg-gray-800 text-gray-500 cursor-not-allowed'}">
-      🧮 Calculate Results
+    <button onclick="calculateResults('${ev.id}')"
+      class="octa font-display uppercase text-2xl px-10 py-4 bg-brl-green hover:bg-brl-green2 text-white shadow-[0_0_30px_rgba(18,161,80,.5)]">
+      ${allPicked ? '🏁 Finalize Card' : '🔄 Refresh Live Leaderboard'}
     </button>
-    ${allPicked ? '' : `<p class="text-xs text-gray-500 mt-2">Pick a winner for every fight to unlock (${ev.fights.filter(f=>f.winner).length}/${ev.fights.length} picked)</p>`}
+    <p class="text-xs text-gray-500 mt-2">${allPicked ? 'Locks the card in and awards tonight\'s win + season points.' : 'Already updates automatically when you tap a winner — this just re-checks everything.'}</p>
   </div>`;
   el.innerHTML = html;
 }
@@ -1294,12 +1515,19 @@ function setWinner(evId, fightId, side) {
   const ev = state.events.find(e => e.id === evId); if (!ev) return;
   const f = ev.fights.find(f => f.id === fightId); if (!f) return;
   f.winner = side;
-  renderResults();
   saveEventFields(ev, ['fights']);
+  // Marking a winner IS the "refresh" — recalculate immediately so the live
+  // Fight Night leaderboard updates for everyone the second a fight ends.
+  calculateResults(evId, { silent: true, fromWinnerTap: true });
 }
 
 /* =====================================================================
    SCORING ENGINE
+   Runs at any point in the night, not just once every fight is decided.
+   Undecided fights simply contribute $0 back yet (their stake is already
+   subtracted, same as a loss, until resolved) — so calling this mid-card
+   always produces a mathematically correct "right now" bankroll. Each bet
+   also gets a tri-state status (pending/won/lost) purely for display.
    ===================================================================== */
 function computeEventResults(ev) {
   const results = {};
@@ -1311,37 +1539,53 @@ function computeEventResults(ev) {
       const f = ev.fights.find(f => f.id === b.fightId);
       if (!f) return;
       staked += b.stake;
-      const won = f.winner === b.side;
+      const decided = f.winner === 1 || f.winner === 2;
+      const won = decided && f.winner === b.side;
       const payout = won ? b.stake * americanToDecimal(b.side === 1 ? f.odds1 : f.odds2) : 0;
       returned += payout;
-      breakdown.push({ fightId: b.fightId, side: b.side, stake: b.stake, won, payout });
+      breakdown.push({ fightId: b.fightId, side: b.side, stake: b.stake, status: !decided ? 'pending' : (won ? 'won' : 'lost'), payout });
     });
     results[p.id] = { staked, returned, bankroll: Math.round(START_BANKROLL - staked + returned), breakdown };
   });
   return results;
 }
 
-function calculateResults(evId) {
+function fightsDecidedCount(ev) { return (ev.fights || []).filter(f => f.winner === 1 || f.winner === 2).length; }
+function eventInProgress(ev) { const n = fightsDecidedCount(ev); return n > 0 && n < (ev.fights || []).length; }
+
+// The single entry point for scoring an event, live or final. Called
+// automatically every time a winner is tapped (silent), and also available
+// as a manual "refresh" button. Auto-completes (and awards the night's win)
+// the moment every fight on the card has a winner.
+function calculateResults(evId, opts) {
+  opts = opts || {};
   const ev = state.events.find(e => e.id === evId); if (!ev) return;
-  if (!ev.fights.every(f => f.winner === 1 || f.winner === 2)) return toast('Pick every winner first', false);
+  if (!ev.fights.length) return;
   ev.results = computeEventResults(ev);
-  ev.status = 'completed';
+  const allDecided = fightsDecidedCount(ev) === ev.fights.length;
+  const wasCompleted = ev.status === 'completed';
+  if (allDecided) ev.status = 'completed';
   renderAll();
-  saveEventFields(ev, ['results', 'status']);
-  toast('🏁 Results are in! Standings, wins and titles updated for everyone.');
-  showTab('history');
+  saveEventFields(ev, allDecided ? ['results', 'status'] : ['results']);
+  if (opts.silent) return;
+  if (allDecided && !wasCompleted) {
+    toast('🏁 Card complete! Standings, wins and titles updated for everyone.');
+    showTab('history');
+  } else {
+    toast('📊 Live leaderboard refreshed');
+  }
 }
 
 function reopenResults(evId) {
   const ev = state.events.find(e => e.id === evId); if (!ev) return;
-  if (!confirm(`Reopen "${ev.name}"? Its points and win are removed from standings until you recalculate.`)) return;
+  if (!confirm(`Reopen "${ev.name}"? Its points and win are removed from standings until fights are re-marked.`)) return;
   ev.status = 'pending';
   ev.results = {};
   ui.resultsEventId = evId;
   renderAll();
   saveEventFields(ev, ['status', 'results']);
   showTab('results');
-  toast('🔓 Event reopened — fix the results and recalculate');
+  toast('🔓 Event reopened — fix the results and they\'ll recalculate as you go');
 }
 
 /* =====================================================================
@@ -1387,11 +1631,12 @@ function renderHistory() {
             if (!f) return '';
             const name = b.side === 1 ? f.f1 : f.f2;
             const odds = b.side === 1 ? f.odds1 : f.odds2;
-            const net = b.won ? b.payout - b.stake : -b.stake;
-            const bigWin = b.won && net >= 150;
+            const won = b.status === 'won';
+            const net = won ? b.payout - b.stake : -b.stake;
+            const bigWin = won && net >= 150;
             return `<div class="flex justify-between items-center text-xs sm:text-sm py-1 border-b border-brl-line/40 last:border-0">
-              <span>${b.won ? '✅' : '❌'} ${esc(name)} <span class="text-gray-500">${fmtOdds(odds)} · ${b.stake} pts</span></span>
-              <span class="font-bold ${b.won ? (bigWin ? 'text-green-300 font-display text-lg' : 'text-green-400') : 'text-red-400'}">${b.won ? '+' + fmtPts(net) : '−' + fmtPts(b.stake)}${bigWin ? ' 💰' : ''}</span>
+              <span>${won ? '✅' : '❌'} ${esc(name)} <span class="text-gray-500">${fmtOdds(odds)} · ${b.stake} pts</span></span>
+              <span class="font-bold ${won ? (bigWin ? 'text-green-300 font-display text-lg' : 'text-green-400') : 'text-red-400'}">${won ? '+' + fmtPts(net) : '−' + fmtPts(b.stake)}${bigWin ? ' 💰' : ''}</span>
             </div>`;
           }).join('') || '<div class="text-xs text-gray-500 italic py-1">Sat this one out — kept the full 1000.</div>';
           return `<div class="octa-sm bg-brl-card2/60 border ${wonNight ? 'border-brl-lime/60' : 'border-brl-line'} p-3">
@@ -1431,7 +1676,7 @@ function renderLeague() {
 // exception in renderEvents() silently prevented renderLeague() (the players
 // list) from ever running again — this is what caused "players not loading."
 function renderAll() {
-  const renders = [renderStandings, renderEvents, renderBetting, renderResults, renderHistory, renderLeague];
+  const renders = [renderFightNight, renderStandings, renderEvents, renderBetting, renderResults, renderHistory, renderLeague];
   renders.forEach(fn => {
     try { fn(); }
     catch (e) { console.error(`${fn.name} failed:`, e); }
